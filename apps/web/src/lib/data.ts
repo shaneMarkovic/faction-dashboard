@@ -68,7 +68,11 @@ export const listFactions = unstable_cache(
     return [{ id: info.factionId ?? basic.id, name: basic.name, tag: basic.tag }];
   },
   ["factions-list"],
-  { revalidate: 30 },
+  // The faction roster changes only when a faction is added/removed — not data
+  // worth re-querying on every 15s LiveRefresh. Cache it for the server's
+  // lifetime so it's fetched once and the switcher stays rock-stable. A new
+  // faction shows up on the next deploy/restart (or a manual revalidateTag).
+  { revalidate: false, tags: ["factions-list"] },
 );
 
 /**
