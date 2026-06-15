@@ -93,6 +93,19 @@ export async function setTravelCapacity(capacity: number): Promise<void> {
   revalidatePath("/finance/flying");
 }
 
+/** Clear the manual capacity override → fall back to auto-detected from perks. */
+export async function resetTravelCapacityAuto(): Promise<void> {
+  const session = await getSession();
+  if (!session) return;
+  await tryQuery(
+    `insert into user_finance_prefs (member_id, travel_capacity, updated_at)
+     values ($1, null, now())
+     on conflict (member_id) do update set travel_capacity = null, updated_at = now()`,
+    [session.tornId],
+  );
+  revalidatePath("/finance/flying");
+}
+
 export async function setTravelTimeReduction(reduction: number): Promise<void> {
   const session = await getSession();
   if (!session) return;

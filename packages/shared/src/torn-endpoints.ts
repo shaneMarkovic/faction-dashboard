@@ -632,6 +632,45 @@ export async function fetchUserStocks(
     .filter((s) => s.shares > 0);
 }
 
+// --- /user?selections=perks → travel capacity (best-effort) ----------------
+
+/** Base travel item capacity before any perks (Torn default). */
+export const TRAVEL_BASE_CAPACITY = 5;
+
+/**
+ * Detect travel item capacity by parsing the user's perks. The perks selection
+ * is a v1 fallback returning freeform strings per category, so this scans every
+ * perk line for a travel-CAPACITY bonus (ignoring travel-TIME perks) and adds
+ * them to the base. Returns null if perks are unavailable (key lacks the
+ * selection) so callers can fall back to a manual value. VERIFY wording vs live.
+ */
+export async function fetchTravelCapacity(client: TornClient): Promise<number | null> {
+  let body: Record<string, unknown>;
+  try {
+    body = await client.get<Record<string, unknown>>("/user", { selections: "perks" });
+  } catch {
+    return null;
+  }
+  // Collect every string from any *_perks array in the response.
+  const lines: string[] = [];
+  for (const v of Object.values(body)) {
+    if (Array.isArray(v)) for (const s of v) if (typeof s === "string") lines.push(s);
+  }
+  if (lines.length === 0) return null;
+
+  let bonus = 0;
+  for (const line of lines) {
+    // Travel-capacity perks read like "+ 10 travel capacity" / "travel items".
+    // Exclude travel-TIME perks (those mention time/minutes/%).
+    if (!/travel/i.test(line)) continue;
+    if (!/capac|item/i.test(line)) continue;
+    if (/time|minute|%/i.test(line)) continue;
+    const m = line.match(/(\d+)/);
+    if (m) bonus += Number(m[1]);
+  }
+  return TRAVEL_BASE_CAPACITY + bonus;
+}
+
 // --- /torn/items (reference; any key) → id → ItemRef -----------------------
 
 export async function fetchItems(client: TornClient): Promise<ItemRef[]> {

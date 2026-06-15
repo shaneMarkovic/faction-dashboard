@@ -3,7 +3,7 @@
 import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import type { FlyingRow } from "@/lib/finance";
-import { setTravelCapacity, setTravelTimeReduction } from "@/app/(dash)/finance/actions";
+import { resetTravelCapacityAuto, setTravelCapacity, setTravelTimeReduction } from "@/app/(dash)/finance/actions";
 import { fmtDuration, fmtMoney } from "@/lib/format";
 
 type SortKey = "profitPerMin" | "tripProfit" | "profitPerItem" | "roiPct" | "stock" | "predictedOnArrival";
@@ -25,10 +25,14 @@ function odds(p: number, confidence: number): { text: string; color: string } {
 export function FlyingTable({
   rows,
   capacity,
+  capacityOverride,
+  detectedCapacity,
   timeReduction,
 }: {
   rows: FlyingRow[];
   capacity: number;
+  capacityOverride: number | null;
+  detectedCapacity: number | null;
   timeReduction: number;
 }) {
   const [country, setCountry] = useState<string>("all");
@@ -54,6 +58,7 @@ export function FlyingTable({
 
   const save = (fn: () => Promise<void>) => start(async () => { await fn(); router.refresh(); });
   const saveCap = () => { const n = Number(cap); if (Number.isFinite(n)) save(() => setTravelCapacity(n)); };
+  const useAuto = () => { setCap(String(detectedCapacity ?? capacity)); save(() => resetTravelCapacityAuto()); };
   const saveRed = () => { const n = Number(red); if (Number.isFinite(n)) save(() => setTravelTimeReduction(n)); };
 
   const toggle = (key: SortKey) =>
@@ -87,7 +92,7 @@ export function FlyingTable({
             ))}
           </select>
         </label>
-        <label className="flex items-center gap-2">
+        <label className="flex items-center gap-2" title="Items you can carry per trip. Auto-detected from your perks; type to override.">
           Capacity
           <input
             type="number" min={1} max={50} value={cap}
@@ -96,6 +101,14 @@ export function FlyingTable({
             onKeyDown={(e) => e.key === "Enter" && saveCap()}
             className="w-16 rounded-md border border-border bg-surface-2 px-2 py-1 text-sm text-foreground outline-none"
           />
+          {capacityOverride != null ? (
+            <span className="text-muted">
+              manual{detectedCapacity != null && ` · auto ${detectedCapacity}`}{" "}
+              <button type="button" onClick={useAuto} className="text-[#58a6ff] hover:underline">use auto</button>
+            </span>
+          ) : (
+            <span className="text-muted">{detectedCapacity != null ? "auto-detected" : "default"}</span>
+          )}
         </label>
         <label className="flex items-center gap-2" title="Flight-time reduction from business class, perks, education, etc.">
           Time −%

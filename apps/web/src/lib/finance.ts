@@ -20,6 +20,7 @@ import {
   fetchUserLog,
   fetchUserMoney,
   fetchUserPersonalStats,
+  fetchTravelCapacity,
   fetchUserStocks,
   fetchUserTravel,
   fetchYataExport,
@@ -461,7 +462,12 @@ export interface FlyingData {
   rows: FlyingRow[];
   /** Top opportunities right now, ranked by risk-adjusted profit/min. */
   recommendations: FlyingRow[];
+  /** Effective capacity used in the math (override ?? detected ?? default). */
   capacity: number;
+  /** Manual override in effect, or null if using auto-detect. */
+  capacityOverride: number | null;
+  /** Auto-detected capacity from perks, or null if unavailable. */
+  detectedCapacity: number | null;
   timeReduction: number;
   wallet: number;
   travel: UserTravelStatus | null;
@@ -474,35 +480,39 @@ export interface FlyingData {
 }
 
 export interface FinancePrefs {
-  capacity: number;
+  /** Manual capacity override; null means auto-detect from perks. */
+  capacityOverride: number | null;
   timeReduction: number;
 }
 
 export async function getFinancePrefs(memberId: number): Promise<FinancePrefs> {
-  const rows = await tryQuery<{ travel_capacity: number; travel_time_reduction: number }>(
+  const rows = await tryQuery<{ travel_capacity: number | null; travel_time_reduction: number }>(
     "select travel_capacity, travel_time_reduction from user_finance_prefs where member_id = $1",
     [memberId],
   );
   const r = rows?.[0];
   return {
-    capacity: r ? Number(r.travel_capacity) : 19,
+    capacityOverride: r && r.travel_capacity != null ? Number(r.travel_capacity) : null,
     timeReduction: r ? Number(r.travel_time_reduction) : 0,
   };
 }
 
 const loadFlyingOpportunitiesCached = unstable_cache(
-  async (memberId: number, capacity: number, timeReduction: number): Promise<FlyingData | null> => {
+  async (memberId: number, capacityOverride: number | null, timeReduction: number): Promise<FlyingData | null> => {
     const pc = await personalTornClient(memberId);
     if (!pc) return null;
 
-    const [stock, items, travel, money, params] = await Promise.all([
+    const [stock, items, travel, money, params, detected] = await Promise.all([
       loadCurrentStock(),
       loadItemPrices(),
       fetchUserTravel(pc.client, nowSec()).catch(() => null),
       fetchUserMoney(pc.client).catch(() => null),
       loadForecastParams(),
+      fetchTravelCapacity(pc.client).catch(() => null),
     ]);
     const wallet = money?.wallet ?? 0;
+    // Override always wins; else auto-detected from perks; else a sane default.
+    const capacity = capacityOverride ?? detected ?? 19;
     const reduction = Math.max(0, Math.min(90, timeReduction)) / 100;
 
     const priceById = new Map(items.map((it) => [it.id, it.marketValue]));
@@ -563,6 +573,8 @@ const loadFlyingOpportunitiesCached = unstable_cache(
       rows,
       recommendations,
       capacity,
+      capacityOverride,
+      detectedCapacity: detected,
       timeReduction,
       wallet,
       travel,

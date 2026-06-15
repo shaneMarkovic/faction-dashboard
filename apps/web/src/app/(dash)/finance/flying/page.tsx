@@ -40,7 +40,7 @@ export default async function FlyingPage() {
   if (!session) redirect("/gate");
 
   const prefs = await getFinancePrefs(session.tornId);
-  const data = await loadFlyingOpportunities(session.tornId, prefs.capacity, prefs.timeReduction);
+  const data = await loadFlyingOpportunities(session.tornId, prefs.capacityOverride, prefs.timeReduction);
 
   const stockSince = data?.stockUpdatedAt ? Math.max(0, Math.floor(Date.now() / 1000) - data.stockUpdatedAt) : null;
   const stockAbsolute = data?.stockUpdatedAt ? new Date(data.stockUpdatedAt * 1000).toLocaleString() : null;
@@ -111,6 +111,8 @@ export default async function FlyingPage() {
           <FlyingTable
             rows={data.rows}
             capacity={data.capacity}
+            capacityOverride={data.capacityOverride}
+            detectedCapacity={data.detectedCapacity}
             timeReduction={data.timeReduction}
           />
         )}
