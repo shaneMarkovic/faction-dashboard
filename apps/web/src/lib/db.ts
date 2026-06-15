@@ -14,7 +14,19 @@ import "server-only";
 import { Pool } from "pg";
 
 function connectionString(): string | undefined {
-  return process.env.DATABASE_URL || process.env.SUPABASE_STRING || undefined;
+  const raw = process.env.DATABASE_URL || process.env.SUPABASE_STRING || undefined;
+  if (!raw) return undefined;
+  // The web app does short, request-scoped queries. Route them through Supabase's
+  // TRANSACTION pooler (port 6543), which allows many more concurrent clients,
+  // instead of the SESSION pooler (5432) whose ~15-client cap is held by the
+  // long-running collector — otherwise key submit / page loads intermittently
+  // fail with "Server unavailable". The collector stays on the session pooler
+  // (it needs LISTEN/NOTIFY, which the transaction pooler doesn't support).
+  // Opt out by setting DB_POOLER=session.
+  if (process.env.DB_POOLER !== "session" && raw.includes("pooler.supabase.com:5432")) {
+    return raw.replace("pooler.supabase.com:5432", "pooler.supabase.com:6543");
+  }
+  return raw;
 }
 
 let pool: Pool | null = null;
@@ -30,9 +42,9 @@ export function getPool(): Pool | null {
   pool ??= new Pool({
     connectionString: cs,
     ssl: { rejectUnauthorized: false },
-    max: 4, // Supabase session pooler caps total clients at 15 — share with the collector
+    max: 4,
     keepAlive: true, // avoid re-handshaking to eu-west-1 (handshake ~3s)
-    idleTimeoutMillis: 5 * 60_000, // keep warm connections around
+    idleTimeoutMillis: 30_000, // release pooled clients promptly so others can connect
     connectionTimeoutMillis: 10_000,
   });
   return pool;
