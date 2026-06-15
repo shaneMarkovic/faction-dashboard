@@ -136,11 +136,11 @@ export function OcBoard({
                           className="flex w-full items-center justify-between text-left"
                         >
                           <span className="text-muted">{s.position} · <span className="text-[#d29922]">empty</span></span>
-                          <span className="text-xs text-[#58a6ff]">{openSlot === slotKey ? "hide" : "assign ▾"}</span>
+                          <span className="text-xs text-[#58a6ff]">{openSlot === slotKey ? "hide" : "suggest ▾"}</span>
                         </button>
                         {openSlot === slotKey && (
                           <div className="mt-2 space-y-1 border-t border-border pt-2">
-                            <div className="text-xs text-muted">Idle candidates (highest level first):</div>
+                            <div className="text-xs text-muted">Suggested idle members (highest level first) — assign them in Torn:</div>
                             {idle.slice(0, 6).map((m) => (
                               <div key={m.tornId} className="flex items-center justify-between text-xs">
                                 <span>{m.name}</span>

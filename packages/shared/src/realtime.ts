@@ -29,12 +29,22 @@ export interface RealtimePublisher {
   publish<T>(event: RealtimeEvent<T>): Promise<void>;
 }
 
+export interface SubscribeOptions {
+  /**
+   * Reports the underlying channel's connection state. Fires `true` once the
+   * channel is actually subscribed, `false` on error/timeout/close — so the UI
+   * can show a truthful "live" indicator instead of assuming a connection.
+   */
+  onStatus?: (connected: boolean) => void;
+}
+
 export interface RealtimeSubscriber {
   /** Returns an unsubscribe function. */
   subscribe<T>(
     factionId: FactionId,
     topic: RealtimeTopic,
     handler: (event: RealtimeEvent<T>) => void,
+    opts?: SubscribeOptions,
   ): () => void;
 }
 
@@ -51,7 +61,13 @@ export class ConsoleRealtimeAdapter implements RealtimeAdapter {
     console.log(`[realtime] ${ch} <- ${event.kind}`);
   }
 
-  subscribe<T>(): () => void {
+  subscribe<T>(
+    _factionId: FactionId,
+    _topic: RealtimeTopic,
+    _handler: (event: RealtimeEvent<T>) => void,
+    opts?: SubscribeOptions,
+  ): () => void {
+    opts?.onStatus?.(false);
     return () => {};
   }
 }
@@ -96,12 +112,15 @@ export class SupabaseRealtimeAdapter implements RealtimeAdapter {
     factionId: FactionId,
     topic: RealtimeTopic,
     handler: (event: RealtimeEvent<T>) => void,
+    opts?: SubscribeOptions,
   ): () => void {
     const name = channelName(factionId, topic);
     const ch = this.client.channel(name, { config: { broadcast: { self: false } } });
     ch.on("broadcast", { event: "*" }, (msg) => {
       handler(msg.payload as RealtimeEvent<T>);
-    }).subscribe();
+    }).subscribe((status) => {
+      opts?.onStatus?.(status === "SUBSCRIBED");
+    });
     this.channels.set(name, ch);
     return () => {
       void this.client.removeChannel(ch);

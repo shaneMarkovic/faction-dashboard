@@ -57,12 +57,22 @@ export function MembersTable({
     return out;
   }, [members, q, filter, sort, asc, now]);
 
+  const toggle = (key: SortKey) =>
+    sort === key ? setAsc(!asc) : (setSort(key), setAsc(false));
+
   const th = (key: SortKey, label: string, extra = "") => (
     <th
-      className={`cursor-pointer select-none px-3 py-2 text-left font-medium hover:text-foreground ${extra}`}
-      onClick={() => (sort === key ? setAsc(!asc) : (setSort(key), setAsc(false)))}
+      scope="col"
+      aria-sort={sort === key ? (asc ? "ascending" : "descending") : "none"}
+      className={`select-none px-3 py-2 font-medium ${extra || "text-left"}`}
     >
-      {label} {sort === key && (asc ? "▲" : "▼")}
+      <button
+        type="button"
+        onClick={() => toggle(key)}
+        className="inline-flex items-center gap-1 hover:text-foreground"
+      >
+        {label} {sort === key && <span aria-hidden="true">{asc ? "▲" : "▼"}</span>}
+      </button>
     </th>
   );
 
@@ -73,6 +83,7 @@ export function MembersTable({
           value={q}
           onChange={(e) => setQ(e.target.value)}
           placeholder="Search name…"
+          aria-label="Search members by name"
           className="rounded-md border border-border bg-surface-2 px-3 py-1.5 text-sm outline-none"
         />
         <div className="flex flex-wrap gap-1">
@@ -80,6 +91,7 @@ export function MembersTable({
             <button
               key={f.key}
               onClick={() => setFilter(f.key)}
+              aria-pressed={filter === f.key}
               className={`rounded-full px-3 py-1 text-xs font-medium transition-colors ${
                 filter === f.key ? "bg-surface-2 text-foreground" : "text-muted hover:text-foreground"
               }`}
@@ -100,7 +112,7 @@ export function MembersTable({
               {th("level", "Lvl", "text-right")}
               {th("lastAction", "Last action")}
               {th("days", "Days", "text-right")}
-              <th className="px-3 py-2 text-left font-medium">Flags</th>
+              <th scope="col" className="px-3 py-2 text-left font-medium">Flags</th>
             </tr>
           </thead>
           <tbody>

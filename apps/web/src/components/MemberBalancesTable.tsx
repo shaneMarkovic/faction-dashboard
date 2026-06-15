@@ -26,12 +26,22 @@ export function MemberBalancesTable({ balances }: { balances: MemberBalance[] })
   const totalMoney = balances.reduce((n, b) => n + b.money, 0);
   const loans = balances.filter((b) => b.money < 0);
 
+  const toggle = (key: SortKey) =>
+    sort === key ? setAsc(!asc) : (setSort(key), setAsc(false));
+
   const th = (key: SortKey, label: string, extra = "") => (
     <th
-      className={`cursor-pointer select-none px-3 py-2 font-medium hover:text-foreground ${extra}`}
-      onClick={() => (sort === key ? setAsc(!asc) : (setSort(key), setAsc(false)))}
+      scope="col"
+      aria-sort={sort === key ? (asc ? "ascending" : "descending") : "none"}
+      className={`select-none px-3 py-2 font-medium ${extra}`}
     >
-      {label} {sort === key && (asc ? "▲" : "▼")}
+      <button
+        type="button"
+        onClick={() => toggle(key)}
+        className="inline-flex items-center gap-1 hover:text-foreground"
+      >
+        {label} {sort === key && <span aria-hidden="true">{asc ? "▲" : "▼"}</span>}
+      </button>
     </th>
   );
 
@@ -42,6 +52,7 @@ export function MemberBalancesTable({ balances }: { balances: MemberBalance[] })
           value={q}
           onChange={(e) => setQ(e.target.value)}
           placeholder="Search member…"
+          aria-label="Search members by name"
           className="rounded-md border border-border bg-surface-2 px-3 py-1.5 text-sm text-foreground outline-none"
         />
         <span>held in vault: {fmtMoney(totalMoney)}</span>
@@ -66,7 +77,7 @@ export function MemberBalancesTable({ balances }: { balances: MemberBalance[] })
                   className="px-3 py-2 text-right tabular-nums"
                   style={{ color: b.money < 0 ? "#f85149" : undefined }}
                 >
-                  {b.money < 0 ? "-" : ""}{fmtMoney(Math.abs(b.money))}
+                  {fmtMoney(b.money)}
                 </td>
                 <td className="px-3 py-2 text-right tabular-nums text-muted">
                   {b.points.toLocaleString()}

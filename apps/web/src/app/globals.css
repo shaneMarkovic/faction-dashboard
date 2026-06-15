@@ -1,12 +1,15 @@
 @import "tailwindcss";
 
 :root {
+  color-scheme: dark; /* native controls (select, number inputs, scrollbars) render dark */
   --background: #0b0e14;
   --surface: #151a23;
   --surface-2: #1c232f;
   --border: #2a3240;
   --foreground: #e6e9ef;
-  --muted: #8b94a3;
+  /* Lightened from #8b94a3 (~4.3:1) to clear WCAG AA (4.5:1) for the abundant
+     small/muted labels on the dark surfaces. */
+  --muted: #a4adbb;
 }
 
 @theme inline {
@@ -24,4 +27,14 @@ body {
   background: var(--background);
   color: var(--foreground);
   font-family: var(--font-sans), system-ui, sans-serif;
+}
+
+/* Global keyboard focus ring. Many controls use `outline-none` with only a
+   border-color change, which is invisible to keyboard users on the dark bg.
+   This guarantees a visible focus indicator everywhere without affecting mouse
+   clicks (:focus-visible only triggers for keyboard/AT navigation). */
+:focus-visible {
+  outline: 2px solid #58a6ff;
+  outline-offset: 2px;
+  border-radius: 4px;
 }

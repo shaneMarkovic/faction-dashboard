@@ -32,8 +32,9 @@ export default function GatePage() {
         </p>
 
         <div className="mt-5 space-y-2">
-          <label className="text-xs font-medium text-muted">Torn API key</label>
+          <label htmlFor="torn-api-key" className="text-xs font-medium text-muted">Torn API key</label>
           <input
+            id="torn-api-key"
             type="password"
             value={key}
             onChange={(e) => setKey(e.target.value)}
@@ -45,11 +46,12 @@ export default function GatePage() {
           <button
             onClick={submit}
             disabled={pending}
+            aria-busy={pending}
             className="w-full rounded-md bg-[#22c48a] px-4 py-2 text-sm font-semibold text-[#0f0f0f] disabled:opacity-60"
           >
             {pending ? "Verifying…" : "Enter dashboard"}
           </button>
-          {error && <p className="text-sm text-[#f85149]">{error}</p>}
+          {error && <p role="alert" className="text-sm text-[#f85149]">{error}</p>}
         </div>
 
         <div className="mt-5 space-y-1 border-t border-border pt-4 text-xs text-muted">

@@ -62,7 +62,7 @@ export function Panel({
 export function EmptyState({ icon, title, hint }: { icon: string; title: string; hint?: string }) {
   return (
     <div className="flex flex-col items-center justify-center gap-1 py-8 text-center">
-      <div className="text-2xl opacity-60">{icon}</div>
+      <div className="text-2xl opacity-60" aria-hidden="true">{icon}</div>
       <div className="text-sm font-medium">{title}</div>
       {hint && <div className="max-w-xs text-xs text-muted">{hint}</div>}
     </div>

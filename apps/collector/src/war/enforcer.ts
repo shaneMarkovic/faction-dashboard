@@ -168,8 +168,18 @@ export class WarEnforcer {
   ): Promise<void> {
     let cursor = this.cursors.get(war.id);
     if (cursor === undefined) {
-      await this.pool.query("delete from member_progress where war_id = $1", [war.id]);
-      cursor = war.start;
+      // Cold start (process restart / first sight): resume from the durable
+      // cursor if we have one; only rebuild from war start when truly fresh.
+      const { rows } = await this.pool.query(
+        "select last_started from war_cursors where war_id = $1",
+        [war.id],
+      );
+      if (rows.length > 0) {
+        cursor = Number(rows[0].last_started);
+      } else {
+        await this.pool.query("delete from member_progress where war_id = $1", [war.id]);
+        cursor = war.start;
+      }
     }
 
     const deltas = new Map<number, { name: string; hits: number; score: number }>();
@@ -195,6 +205,13 @@ export class WarEnforcer {
       from = lastStarted + 1; // next page: strictly after the last seen attack
     }
     this.cursors.set(war.id, lastStarted);
+    // Persist the cursor so a restart resumes here instead of rebuilding.
+    await this.pool.query(
+      `insert into war_cursors (war_id, faction_id, last_started, updated_at)
+       values ($1, $2, $3, now())
+       on conflict (war_id) do update set last_started = excluded.last_started, updated_at = now()`,
+      [war.id, factionId, lastStarted],
+    );
 
     if (deltas.size > 0) {
       const vals: unknown[] = [];

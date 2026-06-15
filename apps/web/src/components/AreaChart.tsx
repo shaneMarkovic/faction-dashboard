@@ -52,6 +52,8 @@ export function AreaChart({
       <svg
         viewBox={`0 0 ${W} ${H}`}
         className="w-full"
+        role="img"
+        aria-label={`Trend chart, ${points.length} points. Peak ${peak.value}${unit}, latest ${points[points.length - 1]!.value}${unit}.`}
         preserveAspectRatio="none"
         onMouseLeave={() => setHover(null)}
         onMouseMove={(e) => {

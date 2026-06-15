@@ -1,5 +1,6 @@
 "use client";
 
+import { useTransition } from "react";
 import { useRouter } from "next/navigation";
 import type { FactionSummary } from "@/lib/data";
 
@@ -16,14 +17,23 @@ export function FactionSwitcher({
   activeId: number;
 }) {
   const router = useRouter();
+  const [pending, start] = useTransition();
 
   return (
     <select
-      className="rounded-md border border-border bg-surface-2 px-3 py-1.5 text-sm font-medium outline-none"
+      aria-label="Active faction"
+      aria-busy={pending}
+      disabled={pending}
+      className="rounded-md border border-border bg-surface-2 px-3 py-1.5 text-sm font-medium outline-none focus-visible:border-muted disabled:opacity-60"
       value={activeId}
       onChange={(e) => {
-        document.cookie = `faction=${e.target.value}; path=/; max-age=31536000`;
-        router.refresh();
+        const secure = typeof location !== "undefined" && location.protocol === "https:";
+        document.cookie =
+          `faction=${e.target.value}; path=/; max-age=31536000; SameSite=Lax` +
+          (secure ? "; Secure" : "");
+        // Wrap the refresh in a transition so the select shows a pending/disabled
+        // state during the re-render instead of looking frozen.
+        start(() => router.refresh());
       }}
     >
       {factions.map((f) => (

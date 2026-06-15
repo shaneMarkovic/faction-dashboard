@@ -104,9 +104,9 @@ export default async function WarPage() {
             <table className="w-full text-sm">
               <thead className="bg-surface-2 text-xs uppercase text-muted">
                 <tr>
-                  <th className="px-3 py-2 text-left font-medium">Opponent</th>
-                  <th className="px-3 py-2 text-right font-medium">Score</th>
-                  <th className="px-3 py-2 text-right font-medium">Result</th>
+                  <th scope="col" className="px-3 py-2 text-left font-medium">Opponent</th>
+                  <th scope="col" className="px-3 py-2 text-right font-medium">Score</th>
+                  <th scope="col" className="px-3 py-2 text-right font-medium">Result</th>
                 </tr>
               </thead>
               <tbody>

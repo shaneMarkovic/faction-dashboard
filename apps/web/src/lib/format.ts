@@ -1,8 +1,10 @@
 export function fmtMoney(n: number): string {
-  if (n >= 1e9) return "$" + (n / 1e9).toFixed(2) + "b";
-  if (n >= 1e6) return "$" + (n / 1e6).toFixed(1) + "m";
-  if (n >= 1e3) return "$" + (n / 1e3).toFixed(1) + "k";
-  return "$" + n.toString();
+  const sign = n < 0 ? "-" : "";
+  const a = Math.abs(n);
+  if (a >= 1e9) return `${sign}$${(a / 1e9).toFixed(2)}b`;
+  if (a >= 1e6) return `${sign}$${(a / 1e6).toFixed(1)}m`;
+  if (a >= 1e3) return `${sign}$${(a / 1e3).toFixed(1)}k`;
+  return `${sign}$${Math.round(a).toLocaleString()}`;
 }
 
 export function fmtDuration(sec: number): string {

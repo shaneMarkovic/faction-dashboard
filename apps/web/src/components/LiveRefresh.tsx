@@ -17,6 +17,7 @@ export function LiveRefresh({ factionId }: { factionId: number }) {
   const router = useRouter();
   const [live, setLive] = useState(false);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const connected = useRef(0);
 
   useEffect(() => {
     const sb = browserSupabase();
@@ -34,8 +35,13 @@ export function LiveRefresh({ factionId }: { factionId: number }) {
     let unsubs: Array<() => void> = [];
     if (sb) {
       const rt = new SupabaseRealtimeAdapter("", "", sb);
-      setLive(true);
-      unsubs = TOPICS.map((t) => rt.subscribe(factionId, t, refresh));
+      // "live" reflects ACTUAL channel connectivity: green only once at least
+      // one channel is subscribed, back to offline if all drop.
+      const onStatus = (ok: boolean) => {
+        connected.current = Math.max(0, connected.current + (ok ? 1 : -1));
+        setLive(connected.current > 0);
+      };
+      unsubs = TOPICS.map((t) => rt.subscribe(factionId, t, refresh, { onStatus }));
     }
 
     return () => {
@@ -43,6 +49,7 @@ export function LiveRefresh({ factionId }: { factionId: number }) {
       clearInterval(poll);
       window.removeEventListener("focus", onFocus);
       unsubs.forEach((u) => u());
+      connected.current = 0;
       setLive(false);
     };
   }, [factionId, router]);
