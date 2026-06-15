@@ -80,6 +80,42 @@ export const loadDashboard = unstable_cache(
 
 interface FactionRow { id: number; name: string; tag: string }
 
+/** Map a chain_snapshots row (with the server-computed `seconds_left`) → ChainSnapshot. */
+function mapChainRow(factionId: number, r: Record<string, unknown>): ChainSnapshot {
+  return {
+    factionId,
+    chainId: r.chain_id == null ? null : Number(r.chain_id),
+    current: Number(r.current),
+    max: Number(r.max),
+    timeout: Number(r.timeout),
+    secondsLeft: Math.round(Number(r.seconds_left ?? r.timeout)),
+    cooldown: Number(r.cooldown),
+    modifier: Number(r.modifier),
+    capturedAt: r.captured_at
+      ? Math.floor(new Date(r.captured_at as string).getTime() / 1000)
+      : nowSec(),
+  };
+}
+
+/**
+ * Latest chain snapshot, read FRESH on every request (NOT cached).
+ *
+ * The chain timer is a fast-ticking single value; serving it through the
+ * short-TTL `loadDashboard` cache meant stale-while-revalidate handed the
+ * client a `secondsLeft` computed up to a refresh-interval ago, and that lag is
+ * invisible to the browser — so the countdown ran ~20-30s behind Torn. Reading
+ * it uncached (one indexed `limit 1` query) keeps `seconds_left` pinned to the
+ * DB's real `now()` at request time; the client Countdown ticks from there.
+ */
+export async function loadChainSnapshot(factionId: number): Promise<ChainSnapshot | null> {
+  const rows = await tryQuery<Record<string, unknown>>(
+    `select *, greatest(0, timeout - extract(epoch from (now() - captured_at))) as seconds_left
+       from chain_snapshots where faction_id = $1 order by captured_at desc limit 1`,
+    [factionId],
+  );
+  return rows?.[0] ? mapChainRow(factionId, rows[0]) : null;
+}
+
 async function loadFromCache(factionId: number): Promise<Dashboard | null> {
   const factions = await tryQuery<FactionRow>(
     "select id, name, coalesce(tag,'') as tag from factions where id = $1",
@@ -129,21 +165,7 @@ async function loadFromCache(factionId: number): Promise<Dashboard | null> {
     updatedAt: nowSec(),
   }));
 
-  const chain: ChainSnapshot | null = chainRows?.[0]
-    ? {
-        factionId,
-        chainId: chainRows[0].chain_id == null ? null : Number(chainRows[0].chain_id),
-        current: Number(chainRows[0].current),
-        max: Number(chainRows[0].max),
-        timeout: Number(chainRows[0].timeout),
-        secondsLeft: Math.round(Number(chainRows[0].seconds_left ?? chainRows[0].timeout)),
-        cooldown: Number(chainRows[0].cooldown),
-        modifier: Number(chainRows[0].modifier),
-        capturedAt: chainRows[0].captured_at
-          ? Math.floor(new Date(chainRows[0].captured_at as string).getTime() / 1000)
-          : nowSec(),
-      }
-    : null;
+  const chain: ChainSnapshot | null = chainRows?.[0] ? mapChainRow(factionId, chainRows[0]) : null;
 
   const wars: RankedWar[] = (warRows ?? []).map((r) => ({
     id: Number(r.id),

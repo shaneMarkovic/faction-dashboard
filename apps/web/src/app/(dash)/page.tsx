@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { loadActiveDashboard, resolveActiveFaction } from "@/lib/active-faction";
-import { loadChainHistory } from "@/lib/data";
+import { loadChainHistory, loadChainSnapshot } from "@/lib/data";
 import { fmtMoney } from "@/lib/format";
 import { Badge, Dot, EmptyState, FactionLink, Panel, ProfileLink, ProgressBar, STATUS_COLOR } from "@/components/ui";
 import { Countdown, TimeAgo } from "@/components/Time";
@@ -21,7 +21,11 @@ function StatTile({ label, value, sub, href }: { label: string; value: React.Rea
 
 export default async function OverviewPage() {
   const { activeId } = await resolveActiveFaction();
-  const [d, chainHistory] = await Promise.all([loadActiveDashboard(), loadChainHistory(activeId, 12)]);
+  const [d, chainHistory, freshChain] = await Promise.all([
+    loadActiveDashboard(),
+    loadChainHistory(activeId, 12),
+    loadChainSnapshot(activeId),
+  ]);
   const now = d.fetchedAt;
   const dataAge = Math.max(0, Math.floor(Date.now() / 1000) - d.fetchedAt);
 
@@ -37,7 +41,8 @@ export default async function OverviewPage() {
   const emptySlots = activeCrimes.reduce((n, c) => n + c.slots.filter((s) => s.userId == null).length, 0);
   const readyCrimes = d.crimes.filter((c) => c.readyAt != null && c.readyAt <= now).length;
 
-  const chain = d.chain;
+  // Fresh, uncached chain so the countdown isn't anchored to stale-cache lag.
+  const chain = freshChain ?? d.chain;
   const chainActive = !!chain && chain.current > 0 && chain.timeout > 0;
   const activeWar = d.wars.find((w) => w.end == null || w.end > now);
 
