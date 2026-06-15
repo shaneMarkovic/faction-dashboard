@@ -25,3 +25,6 @@ npm-debug.log*
 # misc
 coverage/
 *.tsbuildinfo
+
+# bare env file at repo root (real secrets, never commit)
+/env

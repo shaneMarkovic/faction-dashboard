@@ -14,9 +14,19 @@ export async function resolveActiveFaction(): Promise<{
   const factions = await listFactions();
   const store = await cookies();
   const cookieId = Number(store.get("faction")?.value);
-  const activeId = factions.some((f) => f.id === cookieId)
+  const hasCookie = Number.isInteger(cookieId) && cookieId > 0;
+
+  // Respect the user's selection. Only auto-pick the first faction when there's
+  // no cookie, or when the cookie's faction is genuinely absent from a *healthy*
+  // multi-faction list. If the list looks degraded (≤1 entry — e.g. a transient
+  // DB blip collapsed it to the server-key faction), keep the cookie so the user
+  // isn't silently bounced to another faction.
+  const inList = factions.some((f) => f.id === cookieId);
+  const activeId = inList
     ? cookieId
-    : (factions[0]?.id ?? 0);
+    : hasCookie && factions.length <= 1
+      ? cookieId
+      : (factions[0]?.id ?? 0);
   return { factions, activeId };
 }
 

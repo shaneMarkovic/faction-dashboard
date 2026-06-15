@@ -52,13 +52,21 @@ function nowSec(): number {
 /** Factions visible to the user. From DB if present, else the server key's faction. */
 export const listFactions = unstable_cache(
   async (): Promise<FactionSummary[]> => {
-    const rows = await tryQuery<{ id: string | number; name: string; tag: string }>(
-      "select id, name, coalesce(tag, '') as tag from factions order by is_primary desc, name",
-    );
-    // pg returns bigint as a string — coerce so === comparisons with numeric
-    // faction ids (cookie, switcher) work.
-    if (rows && rows.length > 0) {
-      return rows.map((r) => ({ id: Number(r.id), name: r.name, tag: r.tag }));
+    // Retry briefly on transient DB errors. A single failed read would otherwise
+    // collapse the list to the lone server-key faction, which yanks the user's
+    // active-faction selection back to it (see resolveActiveFaction). The pooled
+    // eu-west-1 connection occasionally cold-starts, so one blip is expected.
+    for (let attempt = 0; attempt < 3; attempt++) {
+      const rows = await tryQuery<{ id: string | number; name: string; tag: string }>(
+        "select id, name, coalesce(tag, '') as tag from factions order by is_primary desc, name",
+      );
+      // pg returns bigint as a string — coerce so === comparisons with numeric
+      // faction ids (cookie, switcher) work.
+      if (rows && rows.length > 0) {
+        return rows.map((r) => ({ id: Number(r.id), name: r.name, tag: r.tag }));
+      }
+      if (rows) break; // DB reachable but genuinely empty → use live fallback
+      await new Promise((r) => setTimeout(r, 150)); // rows == null → transient; retry
     }
 
     const info = await serverKeyInfo();
