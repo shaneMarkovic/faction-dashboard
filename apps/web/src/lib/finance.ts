@@ -81,9 +81,25 @@ export async function loadFinanceConnection(memberId: number): Promise<FinanceCo
 
 // --- Shared reference: item market values ----------------------------------
 
-/** id → market value, for the home-market sell baseline. Cached once for all. */
+/**
+ * Item prices for the home-market sell baseline. Read from the collector's
+ * `item_prices` table (the web never calls /torn/items live), with a live fetch
+ * only as a cold-start fallback before the collector has populated the table.
+ */
 export const loadItemPrices = unstable_cache(
   async (): Promise<ItemRef[]> => {
+    const rows = await tryQuery<{ item_id: string; name: string; market_value: string; type: string | null }>(
+      "select item_id, name, market_value, type from item_prices",
+    );
+    if (rows && rows.length > 0) {
+      return rows.map((r) => ({
+        id: Number(r.item_id),
+        name: r.name,
+        marketValue: Number(r.market_value),
+        type: r.type,
+      }));
+    }
+    // Cold start: table not populated yet → one live fetch (needs TORN_API_KEY).
     try {
       return await fetchItems(serverTornClient());
     } catch {

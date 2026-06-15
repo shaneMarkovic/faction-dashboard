@@ -11,7 +11,7 @@
  * current-stock heuristic.
  */
 
-import { computeForecastParams, fetchYataExport, type ObsPoint } from "@torn/shared";
+import { TornClient, computeForecastParams, fetchItems, fetchYataExport, type ObsPoint } from "@torn/shared";
 import type { Pool } from "pg";
 
 const RECORD_MS = 90_000; // poll cadence; fast vs the ~15min restock cycle
@@ -37,6 +37,11 @@ export class TravelStockRecorder {
           console.log(`[stock] refreshed forecast params for ${n} item(s).`);
         } catch (err) {
           console.warn("[stock] refresh failed:", String(err));
+        }
+        try {
+          await this.recordItemPrices();
+        } catch (err) {
+          console.warn("[stock] item-price refresh failed:", String(err));
         }
       }
       if (cycle % PRUNE_EVERY === PRUNE_EVERY - 1) {
@@ -135,6 +140,31 @@ export class TravelStockRecorder {
       );
     }
     return groups.size;
+  }
+
+  /** Refresh the item-price reference table from /torn/items (any key works). */
+  private async recordItemPrices(): Promise<void> {
+    const key = process.env.TORN_API_KEY;
+    if (!key) {
+      console.warn("[stock] TORN_API_KEY not set — skipping item-price refresh.");
+      return;
+    }
+    const items = await fetchItems(new TornClient(key));
+    if (items.length === 0) return;
+    const ids = items.map((i) => i.id);
+    const names = items.map((i) => i.name);
+    const vals = items.map((i) => i.marketValue);
+    const types = items.map((i) => i.type);
+    await this.pool.query(
+      `insert into item_prices (item_id, name, market_value, type, updated_at)
+       select u.id, u.name, u.val, u.type, now()
+         from unnest($1::bigint[], $2::text[], $3::bigint[], $4::text[]) as u(id, name, val, type)
+       on conflict (item_id) do update set
+         name = excluded.name, market_value = excluded.market_value,
+         type = excluded.type, updated_at = now()`,
+      [ids, names, vals, types],
+    );
+    console.log(`[stock] refreshed ${items.length} item prices.`);
   }
 
   private async prune(): Promise<void> {
