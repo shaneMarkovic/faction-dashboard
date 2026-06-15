@@ -483,31 +483,40 @@ interface RawLogEntry {
   data?: Record<string, unknown>;
 }
 
-/**
- * Best-effort signed money delta for a log entry. The `data` object is dynamic
- * (key-value pairs per event type), so we scan common money-bearing keys and
- * pick the sign from the title/category text.
- */
+// Signed money classification for a log entry. Torn's `data` object is shaped
+// per log type, but the money fields are self-describing, so we classify by
+// FIELD NAME rather than guessing from the title. Verified against real
+// /user/log data (crime money_gained, mug money_mugged, job pay, shop
+// cost_total/cost_each, casino cost, church donated, missions/casino `money`).
+
+/** Fields that move money in/out without being income or expense (skip). */
+const TRANSFER_FIELDS = ["deposited", "withdrawn", "balance_before", "balance_after"];
+/** Fields whose value is an expense (money leaving you). */
+const EXPENSE_FIELDS = ["cost", "donated", "fee", "fees", "bail", "fine", "spent", "upkeep", "paid"];
+/** Fields whose value is income (money coming in). */
+const INCOME_FIELDS = [
+  "money_gained", "money_mugged", "pay", "won", "winnings", "prize", "payout",
+  "interest", "reward", "bounty_reward", "received", "sold_for", "money_won", "money_gain",
+];
+/** Title keywords that make a bare `money` field an expense rather than income. */
+const EXPENSE_TITLE = /(buy|bought|spend|spent|cost|bet|lose|lost|bail|fine|fee|donate|deposit)/;
+
 function logMoneyDelta(e: RawLogEntry): number {
   const data = e.data ?? {};
-  if (data.deposited != null) return Math.abs(num(data.deposited));
-  if (data.withdrawn != null) return -Math.abs(num(data.withdrawn));
-  const moneyKeys = ["money", "cost", "amount", "value", "total", "won", "gain", "fee", "price"];
-  let magnitude = 0;
-  for (const k of moneyKeys) {
-    if (data[k] != null && Number.isFinite(num(data[k])) && num(data[k]) !== 0) {
-      magnitude = Math.abs(num(data[k]));
-      break;
-    }
+  // Balance moves / transfers are neither income nor expense.
+  for (const f of TRANSFER_FIELDS) if (data[f] != null) return 0;
+  // Explicit cost fields (most reliable) → expense.
+  if (data.cost_total != null) return -Math.abs(num(data.cost_total));
+  if (data.cost_each != null && data.quantity != null) {
+    return -Math.abs(num(data.cost_each) * num(data.quantity));
   }
-  if (magnitude === 0) return 0;
-  const text = `${e.details?.title ?? ""} ${e.details?.category ?? ""}`.toLowerCase();
-  const incomeHints = ["receive", "deposit", "sell", "sold", "mug", "win", "won", "gain", "collect", "reward", "bounty", "refund"];
-  const expenseHints = ["buy", "bought", "spend", "spent", "withdraw", "fee", "lose", "lost", "pay", "paid", "send", "donate"];
-  const isIncome = incomeHints.some((h) => text.includes(h));
-  const isExpense = expenseHints.some((h) => text.includes(h));
-  if (isIncome && !isExpense) return magnitude;
-  if (isExpense && !isIncome) return -magnitude;
+  for (const f of EXPENSE_FIELDS) if (data[f] != null) return -Math.abs(num(data[f]));
+  for (const f of INCOME_FIELDS) if (data[f] != null) return Math.abs(num(data[f]));
+  // Bare `money`: direction from the title (e.g. "Casino win money" = income).
+  if (data.money != null) {
+    const t = `${e.details?.title ?? ""}`.toLowerCase();
+    return EXPENSE_TITLE.test(t) ? -Math.abs(num(data.money)) : Math.abs(num(data.money));
+  }
   return 0;
 }
 

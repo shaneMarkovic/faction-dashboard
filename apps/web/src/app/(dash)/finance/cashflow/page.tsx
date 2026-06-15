@@ -24,5 +24,5 @@ export default async function CashflowPage() {
     );
   }
 
-  return <CashflowSummary weeks={data.weeks} recent={data.recent} />;
+  return <CashflowSummary weeks={data.weeks} byCategory={data.byCategory} recent={data.recent} />;
 }

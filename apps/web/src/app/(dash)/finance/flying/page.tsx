@@ -8,6 +8,8 @@ import { getSession } from "@/lib/session";
 export const dynamic = "force-dynamic";
 
 function RunCard({ row, rank }: { row: FlyingRow; rank: number }) {
+  const oddsColor = row.forecastConfidence < 0.3 ? "#8b94a3" : row.pSuccess >= 0.7 ? "#3fb950" : row.pSuccess >= 0.4 ? "#d29922" : "#f85149";
+  const oddsText = row.forecastConfidence < 0.3 ? "warming up" : `${Math.round(row.pSuccess * 100)}% still stocked on arrival`;
   return (
     <div className="rounded-xl border border-border bg-surface-2/40 p-3">
       <div className="flex items-center justify-between">
@@ -24,6 +26,9 @@ function RunCard({ row, rank }: { row: FlyingRow; rank: number }) {
           {row.cashLimited && <Badge color="#d29922" title={`A full trip costs ${fmtMoney(row.costPerTrip)}`}>need cash</Badge>}
           {row.lowStock && <Badge color="#f85149">low stock</Badge>}
         </div>
+      </div>
+      <div className="mt-2 border-t border-border pt-2 text-xs" style={{ color: oddsColor }}>
+        ~{row.predictedOnArrival.toLocaleString()} left · {oddsText}
       </div>
     </div>
   );
@@ -66,7 +71,12 @@ export default async function FlyingPage() {
 
       <Panel
         title="Recommended runs right now"
-        right={<span className="text-xs text-muted">ranked by profit / real minute · wallet {fmtMoney(data.wallet)}</span>}
+        right={
+          <span className="text-xs text-muted">
+            risk-adjusted profit/min · wallet {fmtMoney(data.wallet)}
+            {!data.forecastReady && " · forecast warming up"}
+          </span>
+        }
       >
         {data.yataStale ? (
           <EmptyState icon="📡" title="Foreign stock source unavailable" hint="YATA’s travel export didn’t respond. Estimates resume when it’s back." />
@@ -95,9 +105,10 @@ export default async function FlyingPage() {
 
       <p className="text-xs text-muted">
         Profit/min uses standard flight times minus your reduction (business
-        class, perks…). “Per trip” caps units at your capacity and the foreign
-        stock. Stock &amp; foreign prices via YATA; sell prices are Torn item
-        market values — actual fills vary.
+        class, perks…). “On arrival” &amp; odds forecast stock when you land,
+        from observed depletion/restock history — confidence grows as we collect
+        data, so early numbers are rough. Stock &amp; foreign prices via YATA;
+        sell prices are Torn item market values — actual fills vary.
       </p>
     </div>
   );

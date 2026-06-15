@@ -21,6 +21,7 @@ import { listenForKeyChanges } from "./db/notify";
 import { PostgresSink } from "./db/sink";
 import { FactionPoller } from "./poller";
 import { ConsoleSink, type Sink } from "./sink";
+import { TravelStockRecorder } from "./travel-stock";
 import { WarEnforcer } from "./war/enforcer";
 import { WatchedFactionPoller } from "./watched";
 
@@ -62,6 +63,10 @@ async function main(): Promise<void> {
   // touching the others. The top-level controller fans out to all of them.
   const top = new AbortController();
   const running = new Map<FactionId, { controller: AbortController; pool: FactionPool }>();
+
+  // Foreign-stock forecasting data engine: global (faction-independent). Records
+  // YATA snapshots into the ledger + derives forecast params. Stops on shutdown.
+  if (pgSink) new TravelStockRecorder(getPool()).start(top.signal);
 
   /** Bootstrap the faction row, then start a poller under its own controller. */
   async function startFaction(pool: FactionPool): Promise<void> {

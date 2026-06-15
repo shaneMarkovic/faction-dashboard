@@ -22,6 +22,9 @@ import {
   fetchUserPersonalStats,
   fetchUserStocks,
   fetchUserTravel,
+  predictArrival,
+  type ArrivalPrediction,
+  type ForecastModel,
   type ItemRef,
   type NetworthBreakdown,
   type PersonalStatsSubset,
@@ -88,6 +91,32 @@ export const loadItemPrices = unstable_cache(
   },
   ["finance-item-prices"],
   { revalidate: 300 },
+);
+
+/**
+ * Per-item forecast params (written by the collector), as a serializable record
+ * keyed "country:item" (a Map wouldn't survive unstable_cache serialization).
+ */
+const loadForecastParams = unstable_cache(
+  async (): Promise<Record<string, ForecastModel>> => {
+    const rows = await tryQuery<Record<string, unknown>>("select * from forecast_params");
+    const out: Record<string, ForecastModel> = {};
+    for (const r of rows ?? []) {
+      out[`${r.country_code}:${r.item_id}`] = {
+        depletionRatePerMin: Number(r.depletion_rate_per_min),
+        rateVar: Number(r.rate_var),
+        restockIntervalMin: r.restock_interval_min == null ? null : Number(r.restock_interval_min),
+        restockAmount: r.restock_amount == null ? null : Number(r.restock_amount),
+        lastRestockTs: r.last_restock_ts == null ? null : Number(r.last_restock_ts),
+        sampleCount: Number(r.sample_count),
+        spanMinutes: Number(r.span_minutes),
+        confidence: Number(r.confidence),
+      };
+    }
+    return out;
+  },
+  ["finance-forecast-params"],
+  { revalidate: 120 },
 );
 
 // --- Net worth --------------------------------------------------------------
@@ -180,10 +209,21 @@ export interface CashflowWeek {
   net: number;
 }
 
+export interface CategoryFlow {
+  category: string;
+  income: number;
+  expense: number;
+}
+
 export interface CashflowData {
   weeks: CashflowWeek[];
+  /** Per-category income/expense over the window, biggest movers first. */
+  byCategory: CategoryFlow[];
   recent: UserLogEntry[];
 }
+
+/** Per-day category map stored in the `categories` jsonb: { category: {i, e} }. */
+type DayCategories = Record<string, { i: number; e: number }>;
 
 const loadCashflowCached = unstable_cache(
   async (memberId: number, weeks = 8): Promise<CashflowData | null> => {
@@ -198,21 +238,42 @@ const loadCashflowCached = unstable_cache(
     }
     await rollupCashflow(memberId, log);
 
-    const rows = await tryQuery<Record<string, string | number>>(
+    const rows = await tryQuery<Record<string, unknown>>(
       `select extract(epoch from date_trunc('week', day)) as wk,
-              sum(income) as income, sum(expense) as expense, sum(net) as net
+              income, expense, net, categories
          from user_cashflow_daily
         where member_id = $1 and day > (now() - ($2::int * interval '7 day'))::date
-        group by 1 order by 1`,
+        order by day`,
       [memberId, weeks],
     );
+
+    // Weekly totals.
+    const weekMap = new Map<number, CashflowWeek>();
+    const catMap = new Map<string, { income: number; expense: number }>();
+    for (const r of rows ?? []) {
+      const wk = Number(r.wk);
+      const w = weekMap.get(wk) ?? { weekStart: wk, income: 0, expense: 0, net: 0 };
+      w.income += Number(r.income);
+      w.expense += Number(r.expense);
+      w.net += Number(r.net);
+      weekMap.set(wk, w);
+
+      const cats = (r.categories ?? {}) as DayCategories;
+      for (const [cat, v] of Object.entries(cats)) {
+        const c = catMap.get(cat) ?? { income: 0, expense: 0 };
+        c.income += Number(v.i ?? 0);
+        c.expense += Number(v.e ?? 0);
+        catMap.set(cat, c);
+      }
+    }
+
+    const byCategory = [...catMap.entries()]
+      .map(([category, v]) => ({ category, income: v.income, expense: v.expense }))
+      .sort((a, b) => b.income + b.expense - (a.income + a.expense));
+
     return {
-      weeks: (rows ?? []).map((r) => ({
-        weekStart: Number(r.wk),
-        income: Number(r.income),
-        expense: Number(r.expense),
-        net: Number(r.net),
-      })),
+      weeks: [...weekMap.values()].sort((a, b) => a.weekStart - b.weekStart),
+      byCategory,
       recent: log.filter((e) => e.money !== 0).slice(0, 30),
     };
   },
@@ -221,17 +282,18 @@ const loadCashflowCached = unstable_cache(
 );
 export const loadCashflow = guarded(loadCashflowCached);
 
-/** Aggregate the recent log into per-day rows and upsert them. */
+/** Aggregate the recent log into per-day rows (with category breakdown) and upsert. */
 async function rollupCashflow(memberId: number, log: UserLogEntry[]): Promise<void> {
-  const byDay = new Map<string, { income: number; expense: number; categories: Record<string, number> }>();
+  const byDay = new Map<string, { income: number; expense: number; categories: DayCategories }>();
   for (const e of log) {
     if (e.money === 0 || !e.timestamp) continue;
     const day = new Date(e.timestamp * 1000).toISOString().slice(0, 10);
     const bucket = byDay.get(day) ?? { income: 0, expense: 0, categories: {} };
-    if (e.money > 0) bucket.income += e.money;
-    else bucket.expense += -e.money;
     const cat = e.category || "Other";
-    bucket.categories[cat] = (bucket.categories[cat] ?? 0) + e.money;
+    const c = bucket.categories[cat] ?? { i: 0, e: 0 };
+    if (e.money > 0) { bucket.income += e.money; c.i += e.money; }
+    else { bucket.expense += -e.money; c.e += -e.money; }
+    bucket.categories[cat] = c;
     byDay.set(day, bucket);
   }
   for (const [day, b] of byDay) {
@@ -320,17 +382,26 @@ export interface FlyingRow {
   lowStock: boolean;
   /** A full trip costs more than your wallet cash. */
   cashLimited: boolean;
+  /** Predicted stock when YOU land (one-way flight away). */
+  predictedOnArrival: number;
+  /** P(at least a full capacity of units still in stock on arrival), 0..1. */
+  pSuccess: number;
+  /** 0..1 trust in the forecast (low while history is still accruing). */
+  forecastConfidence: number;
+  trend: ArrivalPrediction["trend"];
 }
 
 export interface FlyingData {
   rows: FlyingRow[];
-  /** Top opportunities right now, ranked by profit/min. */
+  /** Top opportunities right now, ranked by risk-adjusted profit/min. */
   recommendations: FlyingRow[];
   capacity: number;
   timeReduction: number;
   wallet: number;
   travel: UserTravelStatus | null;
   yataStale: boolean;
+  /** True once forecasts are meaningfully confident; false during cold start. */
+  forecastReady: boolean;
 }
 
 export interface FinancePrefs {
@@ -355,20 +426,23 @@ const loadFlyingOpportunitiesCached = unstable_cache(
     const pc = await personalTornClient(memberId);
     if (!pc) return null;
 
-    const [yata, items, travel, money] = await Promise.all([
+    const [yata, items, travel, money, params] = await Promise.all([
       loadYataTravel(),
       loadItemPrices(),
       fetchUserTravel(pc.client, nowSec()).catch(() => null),
       fetchUserMoney(pc.client).catch(() => null),
+      loadForecastParams(),
     ]);
     const wallet = money?.wallet ?? 0;
     const reduction = Math.max(0, Math.min(90, timeReduction)) / 100;
 
     const priceById = new Map(items.map((it) => [it.id, it.marketValue]));
+    let maxConfidence = 0;
     const rows: FlyingRow[] = [];
     for (const country of yata) {
-      const oneWay = FLIGHT_MINUTES[country.countryCode];
-      const roundTripMin = oneWay ? Math.max(1, Math.round(2 * oneWay * (1 - reduction))) : 0;
+      const baseOneWay = FLIGHT_MINUTES[country.countryCode];
+      const oneWayMin = baseOneWay ? Math.max(1, Math.round(baseOneWay * (1 - reduction))) : 0;
+      const roundTripMin = oneWayMin * 2;
       for (const item of country.items) {
         const homePrice = priceById.get(item.id) ?? 0;
         if (homePrice <= 0) continue;
@@ -376,6 +450,9 @@ const loadFlyingOpportunitiesCached = unstable_cache(
         const tripUnits = Math.min(capacity, item.quantity);
         const tripProfit = profitPerItem * tripUnits;
         const costPerTrip = item.cost * tripUnits;
+        const model = params[`${country.countryCode}:${item.id}`] ?? null;
+        const pred = predictArrival(model, item.quantity, oneWayMin, capacity);
+        maxConfidence = Math.max(maxConfidence, pred.confidence);
         rows.push({
           countryCode: country.countryCode,
           countryName: COUNTRY_NAMES[country.countryCode] ?? country.countryCode,
@@ -393,16 +470,21 @@ const loadFlyingOpportunitiesCached = unstable_cache(
           profitPerMin: roundTripMin > 0 ? Math.round(tripProfit / roundTripMin) : 0,
           lowStock: item.quantity < capacity,
           cashLimited: costPerTrip > wallet,
+          predictedOnArrival: pred.predictedQty,
+          pSuccess: pred.pSuccess,
+          forecastConfidence: pred.confidence,
+          trend: pred.trend,
         });
       }
     }
     // Default table ordering: best realized profit per trip first.
     rows.sort((a, b) => b.tripProfit - a.tripProfit);
 
-    // "Right now" = best profit/min among profitable, in-stock items.
+    // "Right now" = best RISK-ADJUSTED value: profit/min weighted by the
+    // probability the run actually survives the flight.
     const recommendations = rows
       .filter((r) => r.profitPerItem > 0 && r.roundTripMin > 0 && !r.lowStock)
-      .sort((a, b) => b.profitPerMin - a.profitPerMin)
+      .sort((a, b) => b.profitPerMin * b.pSuccess - a.profitPerMin * a.pSuccess)
       .slice(0, 6);
 
     return {
@@ -413,6 +495,7 @@ const loadFlyingOpportunitiesCached = unstable_cache(
       wallet,
       travel,
       yataStale: yata.length === 0,
+      forecastReady: maxConfidence >= 0.3,
     };
   },
   ["finance-flying"],

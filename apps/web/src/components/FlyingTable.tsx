@@ -6,7 +6,21 @@ import type { FlyingRow } from "@/lib/finance";
 import { setTravelCapacity, setTravelTimeReduction } from "@/app/(dash)/finance/actions";
 import { fmtDuration, fmtMoney } from "@/lib/format";
 
-type SortKey = "profitPerMin" | "tripProfit" | "profitPerItem" | "roiPct" | "stock";
+type SortKey = "profitPerMin" | "tripProfit" | "profitPerItem" | "roiPct" | "stock" | "predictedOnArrival";
+
+const TREND: Record<string, { sym: string; color: string }> = {
+  falling: { sym: "▼", color: "#f85149" },
+  rising: { sym: "▲", color: "#3fb950" },
+  stable: { sym: "→", color: "#a4adbb" },
+  unknown: { sym: "·", color: "#8b94a3" },
+};
+
+function odds(p: number, confidence: number): { text: string; color: string } {
+  if (confidence < 0.3) return { text: "~", color: "#8b94a3" };
+  const pct = Math.round(p * 100);
+  const color = p >= 0.7 ? "#3fb950" : p >= 0.4 ? "#d29922" : "#f85149";
+  return { text: `${pct}%`, color };
+}
 
 export function FlyingTable({
   rows,
@@ -109,6 +123,8 @@ export function FlyingTable({
               {th("profitPerItem", "Profit/item")}
               {th("tripProfit", "Trip profit")}
               <th scope="col" className="px-3 py-2 text-right font-medium">Round trip</th>
+              {th("predictedOnArrival", "On arrival")}
+              <th scope="col" className="px-3 py-2 text-right font-medium" title="Estimated chance a full run is still in stock when you land">Odds</th>
               {th("profitPerMin", "Profit/min")}
               {th("roiPct", "ROI")}
             </tr>
@@ -132,6 +148,13 @@ export function FlyingTable({
                     <span className="ml-1 text-xs text-muted">×{r.tripUnits}</span>
                   </td>
                   <td className="px-3 py-2 text-right tabular-nums text-muted">{fmtDuration(r.roundTripMin * 60)}</td>
+                  <td className="px-3 py-2 text-right tabular-nums">
+                    {r.predictedOnArrival.toLocaleString()}
+                    <span className="ml-1" style={{ color: TREND[r.trend]!.color }} title={r.trend}>{TREND[r.trend]!.sym}</span>
+                  </td>
+                  <td className="px-3 py-2 text-right tabular-nums" style={{ color: odds(r.pSuccess, r.forecastConfidence).color }}>
+                    {odds(r.pSuccess, r.forecastConfidence).text}
+                  </td>
                   <td className="px-3 py-2 text-right tabular-nums" style={{ color }}>{fmtMoney(r.profitPerMin)}</td>
                   <td className="px-3 py-2 text-right tabular-nums" style={{ color }}>{r.roiPct.toFixed(0)}%</td>
                 </tr>

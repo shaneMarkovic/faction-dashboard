@@ -9,6 +9,7 @@
     "start": "tsx src/index.ts",
     "migrate": "tsx --env-file=../../.env.local src/db/migrate.ts",
     "migrate:prod": "tsx src/db/migrate.ts",
+    "backtest:stock": "tsx --env-file=../../.env.local src/backtest-stock.ts",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
