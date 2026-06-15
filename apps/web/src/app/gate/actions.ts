@@ -70,8 +70,8 @@ async function adoptFactionKey(key: string, info: KeyInfo): Promise<void> {
   }
 
   const saved = await tryQuery(
-    `insert into api_keys (member_id, faction_id, encrypted_key, access_level, has_faction_access)
-     values ($1, $2, $3, $4, true)`,
+    `insert into api_keys (member_id, faction_id, encrypted_key, access_level, has_faction_access, purpose)
+     values ($1, $2, $3, $4, true, 'faction')`,
     [info.userId, info.factionId, encrypted, info.accessLevel],
   );
   if (saved == null) {

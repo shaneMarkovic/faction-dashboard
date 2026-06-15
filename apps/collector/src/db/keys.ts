@@ -30,7 +30,10 @@ export async function loadDbKeys(pool: Pool): Promise<{ source: string; key: str
   let rows: ApiKeyRow[];
   try {
     const res = await pool.query<ApiKeyRow>(
-      "select id, faction_id, encrypted_key from api_keys where not revoked",
+      // Only faction keys are pooled as collector pollers; personal finance
+      // keys (purpose='personal') belong to a single user and must never be
+      // probed/grouped by faction here.
+      "select id, faction_id, encrypted_key from api_keys where not revoked and purpose = 'faction'",
     );
     rows = res.rows;
   } catch (err) {

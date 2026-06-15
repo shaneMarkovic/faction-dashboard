@@ -10,6 +10,7 @@ const NAV = [
   { href: "/oc", label: "OC Board", icon: "🎯" },
   { href: "/war", label: "War", icon: "⚔" },
   { href: "/treasury", label: "Treasury", icon: "💰" },
+  { href: "/finance", label: "Finance", icon: "✈" },
 ];
 
 export function Sidebar() {

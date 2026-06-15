@@ -208,6 +208,122 @@ export interface FactionBalances {
 }
 
 // ---------------------------------------------------------------------------
+// Personal finance (read with a member's OWN personal key) — Finance & Flying.
+// Field names are mapped defensively from the Torn v2 responses; the raw shapes
+// for these selections were not all verifiable offline (see `// VERIFY` notes
+// in torn-endpoints.ts).
+// ---------------------------------------------------------------------------
+
+/** Current liquid money positions (GET /user/money → `money`). */
+export interface UserMoney {
+  wallet: number;
+  vault: number;
+  /** City (main) bank balance. */
+  bank: number;
+  cayman: number;
+  company: number;
+  /** Points held (a count, not a money value). */
+  points: number;
+  /** Torn's reported daily net worth total. */
+  dailyNetworth: number;
+}
+
+/**
+ * Net-worth breakdown by holding, from GET /user/personalstats?cat=networth
+ * (the `networth*` stat family). `total` is the `networth` stat itself.
+ */
+export interface NetworthBreakdown {
+  total: number;
+  wallet: number;
+  vault: number;
+  bank: number;
+  cayman: number;
+  points: number;
+  items: number;
+  displaycase: number;
+  /** Active item-market listings (the modern replacement for bazaars). */
+  itemmarket: number;
+  properties: number;
+  stockmarket: number;
+  company: number;
+  /** Everything else (pending, piggy bank, bookie, cars, auction, minus loans/fees). */
+  other: number;
+}
+
+/** Current travel status (GET /user/travel → `travel`). */
+export interface UserTravelStatus {
+  traveling: boolean;
+  /** Destination country name, or null when at home / unknown. */
+  destination: string | null;
+  method: string | null;
+  /** Unix seconds. */
+  departedAt: number | null;
+  arrivalAt: number | null;
+  /** Seconds until arrival, or null. */
+  timeLeft: number | null;
+}
+
+/** A single activity-log entry (GET /user/log), with a signed money delta. */
+export interface UserLogEntry {
+  id: string;
+  /** Human category, used to classify income vs expense. */
+  category: string;
+  title: string;
+  timestamp: number;
+  /** Signed money delta: positive = income, negative = expense, 0 = none found. */
+  money: number;
+}
+
+/** A stock holding (GET /user/stocks), valued against /torn/stocks prices. */
+export interface UserStockHolding {
+  stockId: number;
+  name: string;
+  shares: number;
+  /** Current total value = shares * current price. */
+  value: number;
+  /** Whether a dividend/benefit block is ready to claim. */
+  dividendReady: boolean;
+}
+
+/** One inventory line (GET /user/inventory → `inventory.items`). */
+export interface UserInventoryItem {
+  id: number;
+  name: string;
+  amount: number;
+}
+
+/** Reference item definition (/torn/items) — the home-market sell baseline. */
+export interface ItemRef {
+  id: number;
+  name: string;
+  /** value.market_price */
+  marketValue: number;
+  type: string | null;
+}
+
+/** Reference stock (/torn/stocks) → name + current price. */
+export interface StockRef {
+  name: string;
+  price: number;
+}
+
+/** A subset of personal stats relevant to trading/travel. */
+export interface PersonalStatsSubset {
+  /** Number of trades made. */
+  trades: number | null;
+  /** Items bought from the item market + city shops. */
+  itemsBought: number | null;
+  /** Items bought abroad. */
+  itemsBoughtAbroad: number | null;
+  /** Money mugged from others. */
+  moneyMugged: number | null;
+  /** Total times travelled. */
+  travelTimes: number | null;
+  /** Items found in the city. */
+  cityFinds: number | null;
+}
+
+// ---------------------------------------------------------------------------
 // Realtime channel naming — faction-scoped so tenants never cross streams.
 // ---------------------------------------------------------------------------
 

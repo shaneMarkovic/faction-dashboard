@@ -13,14 +13,29 @@ import type {
   FactionBalance,
   FactionBalances,
   FactionId,
+  ItemRef,
   KeyInfo,
   Member,
   MemberStatusState,
+  NetworthBreakdown,
   OcCrime,
+  PersonalStatsSubset,
   RankedWar,
   RankedWarReport,
+  StockRef,
+  UserInventoryItem,
+  UserLogEntry,
+  UserMoney,
+  UserStockHolding,
+  UserTravelStatus,
 } from "./types";
 import type { TornClient } from "./torn-client";
+
+/** Coerce an unknown API value to a finite number, defaulting to 0. */
+function num(v: unknown): number {
+  const n = typeof v === "string" ? Number(v) : (v as number);
+  return Number.isFinite(n) ? n : 0;
+}
 
 // --- /key/info -------------------------------------------------------------
 
@@ -372,4 +387,262 @@ export async function fetchBalance(
       points: m.points,
     })),
   };
+}
+
+// ===========================================================================
+// Personal endpoints — read with a member's OWN key (Finance & Flying).
+// Shapes verified against openapi.json.
+// ===========================================================================
+
+// --- /user/money ----------------------------------------------------------
+
+export async function fetchUserMoney(client: TornClient): Promise<UserMoney> {
+  const { money } = await client.get<{ money: Record<string, unknown> }>("/user/money");
+  const cityBank = money.city_bank as { amount?: unknown } | null | undefined;
+  return {
+    wallet: num(money.wallet),
+    vault: num(money.vault),
+    bank: cityBank && typeof cityBank === "object" ? num(cityBank.amount) : 0,
+    cayman: num(money.cayman_bank),
+    company: num(money.company),
+    points: num(money.points),
+    dailyNetworth: num(money.daily_networth),
+  };
+}
+
+// --- /user/personalstats (cat=networth → full net-worth breakdown) ---------
+
+export async function fetchNetworthBreakdown(client: TornClient): Promise<NetworthBreakdown> {
+  // cat=networth → personalstats.networth: { total, wallet, vaults, bank,
+  // overseas_bank, points, inventory, display_case, bazaar, item_market,
+  // property, stock_market, auction_house, bookie, company, enlisted_cars,
+  // piggy_bank, pending, loans, unpaid_fees }.
+  const body = await client.get<{ personalstats?: { networth?: Record<string, unknown> } }>(
+    "/user/personalstats",
+    { cat: "networth" },
+  );
+  const nw = body.personalstats?.networth ?? {};
+  const total = num(nw.total);
+  const wallet = num(nw.wallet);
+  const vault = num(nw.vaults);
+  const bank = num(nw.bank);
+  const cayman = num(nw.overseas_bank);
+  const points = num(nw.points);
+  const items = num(nw.inventory);
+  const displaycase = num(nw.display_case);
+  const itemmarket = num(nw.item_market) + num(nw.bazaar);
+  const properties = num(nw.property);
+  const stockmarket = num(nw.stock_market);
+  const company = num(nw.company);
+  const known =
+    wallet + vault + bank + cayman + points + items + displaycase + itemmarket + properties + stockmarket + company;
+  return {
+    total,
+    wallet,
+    vault,
+    bank,
+    cayman,
+    points,
+    items,
+    displaycase,
+    itemmarket,
+    properties,
+    stockmarket,
+    company,
+    other: total - known,
+  };
+}
+
+// --- /user/travel ----------------------------------------------------------
+
+export async function fetchUserTravel(client: TornClient, nowSec: number): Promise<UserTravelStatus> {
+  const { travel } = await client.get<{ travel: Record<string, unknown> }>("/user/travel");
+  const arrivalAt = travel.arrival_at != null ? num(travel.arrival_at) : null;
+  const dest = (travel.destination as string | null) ?? null;
+  const traveling = Boolean(dest) && dest !== "Torn" && (arrivalAt == null || arrivalAt > nowSec);
+  return {
+    traveling,
+    destination: dest && dest !== "Torn" ? dest : null,
+    method: (travel.method as string) ?? null,
+    departedAt: travel.departed_at != null ? num(travel.departed_at) : null,
+    arrivalAt,
+    timeLeft:
+      arrivalAt != null ? Math.max(0, arrivalAt - nowSec) : travel.time_left != null ? num(travel.time_left) : null,
+  };
+}
+
+// --- /user/log -------------------------------------------------------------
+
+interface RawLogEntry {
+  id?: string | number;
+  timestamp?: number;
+  details?: { id?: number; title?: string; category?: string };
+  data?: Record<string, unknown>;
+}
+
+/**
+ * Best-effort signed money delta for a log entry. The `data` object is dynamic
+ * (key-value pairs per event type), so we scan common money-bearing keys and
+ * pick the sign from the title/category text.
+ */
+function logMoneyDelta(e: RawLogEntry): number {
+  const data = e.data ?? {};
+  if (data.deposited != null) return Math.abs(num(data.deposited));
+  if (data.withdrawn != null) return -Math.abs(num(data.withdrawn));
+  const moneyKeys = ["money", "cost", "amount", "value", "total", "won", "gain", "fee", "price"];
+  let magnitude = 0;
+  for (const k of moneyKeys) {
+    if (data[k] != null && Number.isFinite(num(data[k])) && num(data[k]) !== 0) {
+      magnitude = Math.abs(num(data[k]));
+      break;
+    }
+  }
+  if (magnitude === 0) return 0;
+  const text = `${e.details?.title ?? ""} ${e.details?.category ?? ""}`.toLowerCase();
+  const incomeHints = ["receive", "deposit", "sell", "sold", "mug", "win", "won", "gain", "collect", "reward", "bounty", "refund"];
+  const expenseHints = ["buy", "bought", "spend", "spent", "withdraw", "fee", "lose", "lost", "pay", "paid", "send", "donate"];
+  const isIncome = incomeHints.some((h) => text.includes(h));
+  const isExpense = expenseHints.some((h) => text.includes(h));
+  if (isIncome && !isExpense) return magnitude;
+  if (isExpense && !isIncome) return -magnitude;
+  return 0;
+}
+
+export async function fetchUserLog(
+  client: TornClient,
+  opts: { from?: number; to?: number; limit?: number } = {},
+): Promise<UserLogEntry[]> {
+  const q: Record<string, string | number> = { limit: opts.limit ?? 100 };
+  if (opts.from) q.from = opts.from;
+  if (opts.to) q.to = opts.to;
+  const { log } = await client.get<{ log?: RawLogEntry[] }>("/user/log", q);
+  return (log ?? []).map((e) => ({
+    id: String(e.id ?? ""),
+    category: String(e.details?.category ?? ""),
+    title: String(e.details?.title ?? ""),
+    timestamp: num(e.timestamp),
+    money: logMoneyDelta(e),
+  }));
+}
+
+// --- /user/personalstats (stat= → precise named values) --------------------
+
+/** Fetch specific stats by name (≤10). Response: personalstats: [{name,value}]. */
+async function fetchStats(client: TornClient, names: string[]): Promise<Record<string, number>> {
+  const body = await client.get<{ personalstats?: { name?: string; value?: number }[] }>(
+    "/user/personalstats",
+    { stat: names.join(",") },
+  );
+  const out: Record<string, number> = {};
+  for (const s of body.personalstats ?? []) if (s.name) out[s.name] = num(s.value);
+  return out;
+}
+
+export async function fetchUserPersonalStats(client: TornClient): Promise<PersonalStatsSubset> {
+  const f = await fetchStats(client, [
+    "trades",
+    "marketitemsbought",
+    "cityitemsbought",
+    "itemsboughtabroad",
+    "moneymugged",
+    "traveltimes",
+    "cityfinds",
+  ]);
+  const sum = (...names: string[]): number | null => {
+    let total = 0;
+    let found = false;
+    for (const n of names) if (f[n] != null) { total += f[n]!; found = true; }
+    return found ? total : null;
+  };
+  return {
+    trades: sum("trades"),
+    itemsBought: sum("marketitemsbought", "cityitemsbought"),
+    itemsBoughtAbroad: sum("itemsboughtabroad"),
+    moneyMugged: sum("moneymugged"),
+    travelTimes: sum("traveltimes"),
+    cityFinds: sum("cityfinds"),
+  };
+}
+
+/**
+ * Historical net worth at a past timestamp (for seeding the history chart).
+ * Returns null if unavailable.
+ */
+export async function fetchHistoricalNetworth(
+  client: TornClient,
+  timestamp: number,
+): Promise<number | null> {
+  try {
+    const body = await client.get<{ personalstats?: { name?: string; value?: number }[] }>(
+      "/user/personalstats",
+      { stat: "networth", timestamp },
+    );
+    const arr = body.personalstats ?? [];
+    const hit = arr.find((s) => s.name === "networth") ?? arr[0];
+    return hit?.value != null ? num(hit.value) : null;
+  } catch {
+    return null;
+  }
+}
+
+// --- /user/inventory -------------------------------------------------------
+
+export async function fetchUserInventory(client: TornClient): Promise<UserInventoryItem[]> {
+  const body = await client.get<{ inventory?: { items?: Record<string, unknown>[] } }>("/user/inventory");
+  return (body.inventory?.items ?? []).map((it) => ({
+    id: num(it.id),
+    name: String(it.name ?? ""),
+    amount: num(it.amount),
+  }));
+}
+
+// --- /user/stocks ----------------------------------------------------------
+
+export async function fetchUserStocks(
+  client: TornClient,
+  ref: Map<number, StockRef>,
+): Promise<UserStockHolding[]> {
+  const { stocks } = await client.get<{ stocks?: Record<string, unknown>[] }>("/user/stocks");
+  return (stocks ?? [])
+    .map((s) => {
+      const stockId = num(s.id);
+      const shares = num(s.shares);
+      const meta = ref.get(stockId);
+      const bonus = s.bonus as { available?: unknown } | undefined;
+      return {
+        stockId,
+        name: meta?.name ?? `#${stockId}`,
+        shares,
+        value: Math.round(shares * (meta?.price ?? 0)),
+        dividendReady: Boolean(bonus?.available),
+      };
+    })
+    .filter((s) => s.shares > 0);
+}
+
+// --- /torn/items (reference; any key) → id → ItemRef -----------------------
+
+export async function fetchItems(client: TornClient): Promise<ItemRef[]> {
+  const { items } = await client.get<{ items?: Record<string, unknown>[] }>("/torn/items");
+  return (items ?? []).map((it) => {
+    const value = (it.value as { market_price?: unknown } | undefined) ?? {};
+    return {
+      id: num(it.id),
+      name: String(it.name ?? ""),
+      marketValue: num(value.market_price),
+      type: (it.type as string) ?? null,
+    };
+  });
+}
+
+// --- /torn/stocks (reference; any key) → id → { name, price } --------------
+
+export async function fetchStocksRef(client: TornClient): Promise<Map<number, StockRef>> {
+  const { stocks } = await client.get<{ stocks?: Record<string, unknown>[] }>("/torn/stocks");
+  const out = new Map<number, StockRef>();
+  for (const s of stocks ?? []) {
+    const market = (s.market as { price?: unknown } | undefined) ?? {};
+    out.set(num(s.id), { name: String(s.name ?? s.acronym ?? ""), price: num(market.price) });
+  }
+  return out;
 }
