@@ -49,31 +49,19 @@ function nowSec(): number {
   return Math.floor(Date.now() / 1000);
 }
 
-/** Factions visible to the user. From DB if present, else the server key's faction. */
-export const listFactions = unstable_cache(
-  async (): Promise<FactionSummary[]> => {
-    const rows = await tryQuery<{ id: string | number; name: string; tag: string }>(
-      "select id, name, coalesce(tag, '') as tag from factions order by is_primary desc, name",
-    );
-    // pg returns bigint as a string — coerce so === comparisons with numeric
-    // faction ids (cookie, switcher) work. tryQuery already retries transient
-    // errors, so reaching the live fallback means the DB is genuinely empty or
-    // unconfigured — not a momentary blip.
-    if (rows && rows.length > 0) {
-      return rows.map((r) => ({ id: Number(r.id), name: r.name, tag: r.tag }));
-    }
+/**
+ * The faction roster — HARDCODED on purpose. It barely ever changes, and
+ * reading it from the DB on every refresh was collapsing the switcher to a
+ * single faction / plain text on any DB blip. To add a faction, add a line here.
+ */
+const FACTIONS: FactionSummary[] = [
+  { id: 34247, name: "Infinite Tim Tams", tag: "ITT" },
+  { id: 14581, name: "Happy Vegemites", tag: "HV" },
+];
 
-    const info = await serverKeyInfo();
-    const basic = await fetchFactionBasic(serverTornClient());
-    return [{ id: info.factionId ?? basic.id, name: basic.name, tag: basic.tag }];
-  },
-  ["factions-list"],
-  // The faction roster changes only when a faction is added/removed — not data
-  // worth re-querying on every 15s LiveRefresh. Cache it for the server's
-  // lifetime so it's fetched once and the switcher stays rock-stable. A new
-  // faction shows up on the next deploy/restart (or a manual revalidateTag).
-  { revalidate: false, tags: ["factions-list"] },
-);
+export async function listFactions(): Promise<FactionSummary[]> {
+  return FACTIONS;
+}
 
 /**
  * Assembled dashboard for a faction. Cached briefly (the collector writes every

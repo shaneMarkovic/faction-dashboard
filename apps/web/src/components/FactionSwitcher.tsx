@@ -17,15 +17,6 @@ export function FactionSwitcher({
 }) {
   const router = useRouter();
 
-  if (factions.length <= 1) {
-    const f = factions[0];
-    return (
-      <span className="rounded-md border border-border bg-surface-2 px-3 py-1.5 text-sm font-medium">
-        {f ? `${f.name} [${f.tag}]` : "—"}
-      </span>
-    );
-  }
-
   return (
     <select
       className="rounded-md border border-border bg-surface-2 px-3 py-1.5 text-sm font-medium outline-none"
