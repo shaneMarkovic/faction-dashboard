@@ -38,18 +38,31 @@ export function getPool(): Pool | null {
   return pool;
 }
 
-/** Run a query, returning null (not throwing) if the DB is unavailable. */
+/**
+ * Run a query, returning null (not throwing) if the DB is unavailable.
+ *
+ * Retries transient failures before giving up: the pooled eu-west-1 connection
+ * occasionally cold-starts (handshake ~3s), and a single dropped read would
+ * otherwise surface as missing data or a collapsed faction list. Reads are
+ * idempotent; the few writes routed through here (key adopt, pg_notify) are
+ * safe to retry.
+ */
 export async function tryQuery<T>(
   text: string,
   params: unknown[] = [],
 ): Promise<T[] | null> {
   const p = getPool();
   if (!p) return null;
-  try {
-    const res = await p.query(text, params);
-    return res.rows as T[];
-  } catch (err) {
-    console.warn("[db] query failed, falling back:", String(err));
-    return null;
+  let lastErr: unknown;
+  for (let attempt = 0; attempt < 3; attempt++) {
+    try {
+      const res = await p.query(text, params);
+      return res.rows as T[];
+    } catch (err) {
+      lastErr = err;
+      if (attempt < 2) await new Promise((r) => setTimeout(r, 150 * (attempt + 1)));
+    }
   }
+  console.warn("[db] query failed after retries, falling back:", String(lastErr));
+  return null;
 }
