@@ -22,6 +22,7 @@ import {
   fetchUserPersonalStats,
   fetchUserStocks,
   fetchUserTravel,
+  fetchYataExport,
   predictArrival,
   type ArrivalPrediction,
   type ForecastModel,
@@ -34,7 +35,7 @@ import {
 } from "@torn/shared";
 import { tryQuery } from "./db";
 import { personalTornClient, serverTornClient } from "./torn";
-import { COUNTRY_NAMES, loadYataTravel } from "./yata";
+import { COUNTRY_NAMES } from "./yata";
 
 export interface Point {
   t: number;
@@ -91,6 +92,55 @@ export const loadItemPrices = unstable_cache(
   },
   ["finance-item-prices"],
   { revalidate: 300 },
+);
+
+interface StockSnapshot {
+  countryCode: string;
+  /** Unix seconds — source update time of the freshest item in this country. */
+  updatedAt: number;
+  items: { id: number; quantity: number; cost: number }[];
+}
+
+/**
+ * Current foreign stock, read from the collector's ledger (latest observation
+ * per item) — NOT a live YATA call, so the request path never depends on YATA
+ * uptime. Falls back to one live YATA fetch only during cold start, before the
+ * collector has recorded anything.
+ */
+const loadCurrentStock = unstable_cache(
+  async (): Promise<StockSnapshot[]> => {
+    const rows = await tryQuery<{
+      country_code: string;
+      item_id: string;
+      quantity: number;
+      cost: string;
+      source_update_ts: string;
+    }>(
+      `select distinct on (country_code, item_id)
+              country_code, item_id, quantity, cost, source_update_ts
+         from stock_observations
+        order by country_code, item_id, source_update_ts desc`,
+    );
+    if (rows && rows.length > 0) {
+      const byCountry = new Map<string, StockSnapshot>();
+      for (const r of rows) {
+        const c = byCountry.get(r.country_code) ?? { countryCode: r.country_code, updatedAt: 0, items: [] };
+        c.items.push({ id: Number(r.item_id), quantity: Number(r.quantity), cost: Number(r.cost) });
+        c.updatedAt = Math.max(c.updatedAt, Number(r.source_update_ts));
+        byCountry.set(r.country_code, c);
+      }
+      return [...byCountry.values()];
+    }
+    // Cold start: ledger empty (collector not recording yet) → one live fetch.
+    const live = await fetchYataExport();
+    return live.map((c) => ({
+      countryCode: c.countryCode,
+      updatedAt: c.updatedAt,
+      items: c.items.map((i) => ({ id: i.id, quantity: i.quantity, cost: i.cost })),
+    }));
+  },
+  ["finance-current-stock"],
+  { revalidate: 60 },
 );
 
 /**
@@ -399,7 +449,10 @@ export interface FlyingData {
   timeReduction: number;
   wallet: number;
   travel: UserTravelStatus | null;
+  /** No foreign-stock data available at all (ledger empty and live fetch failed). */
   yataStale: boolean;
+  /** Unix seconds of the most recent stock observation, or null if none. */
+  stockUpdatedAt: number | null;
   /** True once forecasts are meaningfully confident; false during cold start. */
   forecastReady: boolean;
 }
@@ -426,8 +479,8 @@ const loadFlyingOpportunitiesCached = unstable_cache(
     const pc = await personalTornClient(memberId);
     if (!pc) return null;
 
-    const [yata, items, travel, money, params] = await Promise.all([
-      loadYataTravel(),
+    const [stock, items, travel, money, params] = await Promise.all([
+      loadCurrentStock(),
       loadItemPrices(),
       fetchUserTravel(pc.client, nowSec()).catch(() => null),
       fetchUserMoney(pc.client).catch(() => null),
@@ -437,9 +490,12 @@ const loadFlyingOpportunitiesCached = unstable_cache(
     const reduction = Math.max(0, Math.min(90, timeReduction)) / 100;
 
     const priceById = new Map(items.map((it) => [it.id, it.marketValue]));
+    const nameById = new Map(items.map((it) => [it.id, it.name]));
     let maxConfidence = 0;
+    let stockUpdatedAt = 0;
     const rows: FlyingRow[] = [];
-    for (const country of yata) {
+    for (const country of stock) {
+      stockUpdatedAt = Math.max(stockUpdatedAt, country.updatedAt);
       const baseOneWay = FLIGHT_MINUTES[country.countryCode];
       const oneWayMin = baseOneWay ? Math.max(1, Math.round(baseOneWay * (1 - reduction))) : 0;
       const roundTripMin = oneWayMin * 2;
@@ -457,7 +513,7 @@ const loadFlyingOpportunitiesCached = unstable_cache(
           countryCode: country.countryCode,
           countryName: COUNTRY_NAMES[country.countryCode] ?? country.countryCode,
           itemId: item.id,
-          itemName: item.name,
+          itemName: nameById.get(item.id) ?? `#${item.id}`,
           stock: item.quantity,
           buyPrice: item.cost,
           homePrice,
@@ -494,7 +550,8 @@ const loadFlyingOpportunitiesCached = unstable_cache(
       timeReduction,
       wallet,
       travel,
-      yataStale: yata.length === 0,
+      yataStale: stock.length === 0,
+      stockUpdatedAt: stockUpdatedAt > 0 ? stockUpdatedAt : null,
       forecastReady: maxConfidence >= 0.3,
     };
   },

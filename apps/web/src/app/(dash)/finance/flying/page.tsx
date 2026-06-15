@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import { FlyingTable } from "@/components/FlyingTable";
+import { TimeAgo } from "@/components/Time";
 import { Badge, EmptyState, Panel } from "@/components/ui";
 import { fmtDuration, fmtMoney } from "@/lib/format";
 import { getFinancePrefs, loadFlyingOpportunities, type FlyingRow } from "@/lib/finance";
@@ -41,6 +42,9 @@ export default async function FlyingPage() {
   const prefs = await getFinancePrefs(session.tornId);
   const data = await loadFlyingOpportunities(session.tornId, prefs.capacity, prefs.timeReduction);
 
+  const stockSince = data?.stockUpdatedAt ? Math.max(0, Math.floor(Date.now() / 1000) - data.stockUpdatedAt) : null;
+  const stockAbsolute = data?.stockUpdatedAt ? new Date(data.stockUpdatedAt * 1000).toLocaleString() : null;
+
   if (!data) {
     return (
       <Panel>
@@ -79,7 +83,7 @@ export default async function FlyingPage() {
         }
       >
         {data.yataStale ? (
-          <EmptyState icon="📡" title="Foreign stock source unavailable" hint="YATA’s travel export didn’t respond. Estimates resume when it’s back." />
+          <EmptyState icon="📡" title="No stock data yet" hint="The collector hasn’t recorded any foreign stock yet. It populates within a minute or two of starting." />
         ) : data.recommendations.length === 0 ? (
           <EmptyState icon="🧳" title="Nothing profitable in stock right now" hint="Check back as foreign shops restock." />
         ) : (
@@ -91,7 +95,16 @@ export default async function FlyingPage() {
         )}
       </Panel>
 
-      <Panel title="All buying opportunities">
+      <Panel
+        title="All buying opportunities"
+        right={
+          stockSince != null ? (
+            <span className="text-xs text-muted" title={stockAbsolute ?? undefined}>
+              stock updated <TimeAgo since={stockSince} />
+            </span>
+          ) : undefined
+        }
+      >
         {data.rows.length === 0 ? (
           <EmptyState icon="🧳" title="No priced items right now" hint="Item prices or foreign stock are still loading." />
         ) : (

@@ -22,6 +22,9 @@ async function main(): Promise<void> {
        applied_at timestamptz not null default now()
      )`,
   );
+  // Lock the ledger from Supabase's public REST API (anon key). RLS with no
+  // policies denies anon/authenticated; the service-role connection bypasses it.
+  await pool.query("alter table _migrations enable row level security");
 
   const files = readdirSync(MIGRATIONS_DIR)
     .filter((f) => f.endsWith(".sql"))
