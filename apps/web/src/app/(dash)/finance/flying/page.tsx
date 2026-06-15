@@ -40,9 +40,9 @@ export default async function FlyingPage() {
     return (
       <Panel>
         <EmptyState
-          icon="🔑"
-          title="Couldn’t read your travel status"
-          hint="Your finance key may be missing the travel/money permission. Use “Disconnect key” above and reconnect with the full access set."
+          icon="🔌"
+          title="Couldn’t reach your finance data"
+          hint="Temporary connection hiccup, or your key needs the travel/money permission. Refresh in a moment; if it persists, reconnect your key from above."
         />
       </Panel>
     );

@@ -48,28 +48,49 @@ export const COUNTRY_NAMES: Record<string, string> = {
   sou: "South Africa",
 };
 
+// Last successful fetch, kept in-memory so a transient YATA failure serves
+// slightly-stale stock instead of flipping the UI to "unavailable". Foreign
+// stock changes over minutes, so a few-minute-old snapshot is still useful.
+let lastGood: { data: YataCountryStock[]; at: number } | null = null;
+const LAST_GOOD_MAX_AGE_MS = 30 * 60_000;
+
+async function fetchYataOnce(): Promise<YataCountryStock[] | null> {
+  try {
+    const res = await fetch("https://yata.yt/api/v1/travel/export/", {
+      signal: AbortSignal.timeout(10_000),
+      headers: { Accept: "application/json" },
+    });
+    if (!res.ok) return null;
+    const body = (await res.json()) as RawYata;
+    return Object.entries(body.stocks ?? {}).map(([code, c]) => ({
+      countryCode: code,
+      updatedAt: Number(c.update ?? 0),
+      items: (c.stocks ?? []).map((s) => ({
+        id: Number(s.id),
+        name: String(s.name),
+        quantity: Number(s.quantity),
+        cost: Number(s.cost),
+      })),
+    }));
+  } catch {
+    return null;
+  }
+}
+
 export const loadYataTravel = unstable_cache(
   async (): Promise<YataCountryStock[]> => {
-    try {
-      const res = await fetch("https://yata.yt/api/v1/travel/export/", {
-        signal: AbortSignal.timeout(10_000),
-        headers: { Accept: "application/json" },
-      });
-      if (!res.ok) return [];
-      const body = (await res.json()) as RawYata;
-      return Object.entries(body.stocks ?? {}).map(([code, c]) => ({
-        countryCode: code,
-        updatedAt: Number(c.update ?? 0),
-        items: (c.stocks ?? []).map((s) => ({
-          id: Number(s.id),
-          name: String(s.name),
-          quantity: Number(s.quantity),
-          cost: Number(s.cost),
-        })),
-      }));
-    } catch {
-      return [];
+    // Two attempts before giving up on this revalidation cycle.
+    const fresh = (await fetchYataOnce()) ?? (await fetchYataOnce());
+    if (fresh && fresh.length > 0) {
+      lastGood = { data: fresh, at: Date.now() };
+      return fresh;
     }
+    // Transient failure: serve the last good snapshot if recent, so the page
+    // doesn't flap to "unavailable" on a single hiccup.
+    if (lastGood && Date.now() - lastGood.at < LAST_GOOD_MAX_AGE_MS) {
+      return lastGood.data;
+    }
+    return [];
   },
   ["yata-travel"],
   { revalidate: 120 }, // foreign stock shifts on the order of minutes

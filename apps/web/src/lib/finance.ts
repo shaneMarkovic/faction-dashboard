@@ -42,6 +42,21 @@ function nowSec(): number {
   return Math.floor(Date.now() / 1000);
 }
 
+/**
+ * Wrap a per-user cached loader so that a missing personal client (no key, or a
+ * transient DB outage where the key row can't be read) returns null WITHOUT
+ * caching it. Otherwise `unstable_cache` would pin that null for the whole
+ * revalidate window, so one DB blip makes a tab look broken for minutes.
+ */
+function guarded<A extends unknown[], T>(
+  cached: (memberId: number, ...args: A) => Promise<T | null>,
+): (memberId: number, ...args: A) => Promise<T | null> {
+  return async (memberId: number, ...args: A) => {
+    if (!(await personalTornClient(memberId))) return null;
+    return cached(memberId, ...args);
+  };
+}
+
 // --- Connection -------------------------------------------------------------
 
 export interface FinanceConnection {
@@ -81,7 +96,7 @@ export interface NetworthData {
   breakdown: NetworthBreakdown;
 }
 
-export const loadNetworth = unstable_cache(
+const loadNetworthCached = unstable_cache(
   async (memberId: number): Promise<NetworthData | null> => {
     const pc = await personalTornClient(memberId);
     if (!pc) return null;
@@ -97,6 +112,7 @@ export const loadNetworth = unstable_cache(
   ["finance-networth"],
   { revalidate: 60 },
 );
+export const loadNetworth = guarded(loadNetworthCached);
 
 /** Insert a snapshot at most once per 6h per member (throttle). */
 async function writeNetworthSnapshot(memberId: number, n: NetworthBreakdown): Promise<void> {
@@ -169,7 +185,7 @@ export interface CashflowData {
   recent: UserLogEntry[];
 }
 
-export const loadCashflow = unstable_cache(
+const loadCashflowCached = unstable_cache(
   async (memberId: number, weeks = 8): Promise<CashflowData | null> => {
     const pc = await personalTornClient(memberId);
     if (!pc) return null;
@@ -203,6 +219,7 @@ export const loadCashflow = unstable_cache(
   ["finance-cashflow"],
   { revalidate: 120 },
 );
+export const loadCashflow = guarded(loadCashflowCached);
 
 /** Aggregate the recent log into per-day rows and upsert them. */
 async function rollupCashflow(memberId: number, log: UserLogEntry[]): Promise<void> {
@@ -237,7 +254,7 @@ export interface TradingData {
   holdings: UserStockHolding[];
 }
 
-export const loadTradingStats = unstable_cache(
+const loadTradingStatsCached = unstable_cache(
   async (memberId: number): Promise<TradingData | null> => {
     const pc = await personalTornClient(memberId);
     if (!pc) return null;
@@ -260,6 +277,7 @@ export const loadTradingStats = unstable_cache(
   ["finance-trading"],
   { revalidate: 120 },
 );
+export const loadTradingStats = guarded(loadTradingStatsCached);
 
 // --- Flying / trading helper ------------------------------------------------
 
@@ -332,7 +350,7 @@ export async function getFinancePrefs(memberId: number): Promise<FinancePrefs> {
   };
 }
 
-export const loadFlyingOpportunities = unstable_cache(
+const loadFlyingOpportunitiesCached = unstable_cache(
   async (memberId: number, capacity: number, timeReduction: number): Promise<FlyingData | null> => {
     const pc = await personalTornClient(memberId);
     if (!pc) return null;
@@ -400,3 +418,4 @@ export const loadFlyingOpportunities = unstable_cache(
   ["finance-flying"],
   { revalidate: 120 },
 );
+export const loadFlyingOpportunities = guarded(loadFlyingOpportunitiesCached);
