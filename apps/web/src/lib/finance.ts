@@ -18,6 +18,7 @@ import {
   fetchNetworthBreakdown,
   fetchStocksRef,
   fetchUserLog,
+  fetchUserMoney,
   fetchUserPersonalStats,
   fetchUserStocks,
   fetchUserTravel,
@@ -262,6 +263,21 @@ export const loadTradingStats = unstable_cache(
 
 // --- Flying / trading helper ------------------------------------------------
 
+/** Standard one-way flight time (minutes) by YATA country code. */
+const FLIGHT_MINUTES: Record<string, number> = {
+  mex: 26,
+  cay: 35,
+  can: 41,
+  haw: 134,
+  uni: 159,
+  arg: 167,
+  swi: 175,
+  jap: 225,
+  chi: 242,
+  uae: 271,
+  sou: 297,
+};
+
 export interface FlyingRow {
   countryCode: string;
   countryName: string;
@@ -271,43 +287,77 @@ export interface FlyingRow {
   buyPrice: number;
   homePrice: number;
   profitPerItem: number;
-  profitPerTrip: number;
   roiPct: number;
+  /** Round-trip flight time in minutes, after the user's reduction. */
+  roundTripMin: number;
+  /** Units you can actually carry this trip = min(capacity, stock). */
+  tripUnits: number;
+  /** Realistic profit for one trip = profitPerItem * tripUnits. */
+  tripProfit: number;
+  /** Cash needed to buy a full trip. */
+  costPerTrip: number;
+  /** profit per real-world minute (round trip). The optimizer's ranking key. */
+  profitPerMin: number;
+  /** Foreign stock can't fill your capacity. */
+  lowStock: boolean;
+  /** A full trip costs more than your wallet cash. */
+  cashLimited: boolean;
 }
 
 export interface FlyingData {
   rows: FlyingRow[];
+  /** Top opportunities right now, ranked by profit/min. */
+  recommendations: FlyingRow[];
   capacity: number;
+  timeReduction: number;
+  wallet: number;
   travel: UserTravelStatus | null;
   yataStale: boolean;
 }
 
-export async function getTravelCapacity(memberId: number): Promise<number> {
-  const rows = await tryQuery<{ travel_capacity: number }>(
-    "select travel_capacity from user_finance_prefs where member_id = $1",
+export interface FinancePrefs {
+  capacity: number;
+  timeReduction: number;
+}
+
+export async function getFinancePrefs(memberId: number): Promise<FinancePrefs> {
+  const rows = await tryQuery<{ travel_capacity: number; travel_time_reduction: number }>(
+    "select travel_capacity, travel_time_reduction from user_finance_prefs where member_id = $1",
     [memberId],
   );
-  return rows?.[0] ? Number(rows[0].travel_capacity) : 19;
+  const r = rows?.[0];
+  return {
+    capacity: r ? Number(r.travel_capacity) : 19,
+    timeReduction: r ? Number(r.travel_time_reduction) : 0,
+  };
 }
 
 export const loadFlyingOpportunities = unstable_cache(
-  async (memberId: number, capacity: number): Promise<FlyingData | null> => {
+  async (memberId: number, capacity: number, timeReduction: number): Promise<FlyingData | null> => {
     const pc = await personalTornClient(memberId);
     if (!pc) return null;
 
-    const [yata, items, travel] = await Promise.all([
+    const [yata, items, travel, money] = await Promise.all([
       loadYataTravel(),
       loadItemPrices(),
       fetchUserTravel(pc.client, nowSec()).catch(() => null),
+      fetchUserMoney(pc.client).catch(() => null),
     ]);
+    const wallet = money?.wallet ?? 0;
+    const reduction = Math.max(0, Math.min(90, timeReduction)) / 100;
 
     const priceById = new Map(items.map((it) => [it.id, it.marketValue]));
     const rows: FlyingRow[] = [];
     for (const country of yata) {
+      const oneWay = FLIGHT_MINUTES[country.countryCode];
+      const roundTripMin = oneWay ? Math.max(1, Math.round(2 * oneWay * (1 - reduction))) : 0;
       for (const item of country.items) {
         const homePrice = priceById.get(item.id) ?? 0;
         if (homePrice <= 0) continue;
         const profitPerItem = homePrice - item.cost;
+        const tripUnits = Math.min(capacity, item.quantity);
+        const tripProfit = profitPerItem * tripUnits;
+        const costPerTrip = item.cost * tripUnits;
         rows.push({
           countryCode: country.countryCode,
           countryName: COUNTRY_NAMES[country.countryCode] ?? country.countryCode,
@@ -317,13 +367,35 @@ export const loadFlyingOpportunities = unstable_cache(
           buyPrice: item.cost,
           homePrice,
           profitPerItem,
-          profitPerTrip: profitPerItem * capacity,
           roiPct: item.cost > 0 ? (profitPerItem / item.cost) * 100 : 0,
+          roundTripMin,
+          tripUnits,
+          tripProfit,
+          costPerTrip,
+          profitPerMin: roundTripMin > 0 ? Math.round(tripProfit / roundTripMin) : 0,
+          lowStock: item.quantity < capacity,
+          cashLimited: costPerTrip > wallet,
         });
       }
     }
-    rows.sort((a, b) => b.profitPerItem - a.profitPerItem);
-    return { rows, capacity, travel, yataStale: yata.length === 0 };
+    // Default table ordering: best realized profit per trip first.
+    rows.sort((a, b) => b.tripProfit - a.tripProfit);
+
+    // "Right now" = best profit/min among profitable, in-stock items.
+    const recommendations = rows
+      .filter((r) => r.profitPerItem > 0 && r.roundTripMin > 0 && !r.lowStock)
+      .sort((a, b) => b.profitPerMin - a.profitPerMin)
+      .slice(0, 6);
+
+    return {
+      rows,
+      recommendations,
+      capacity,
+      timeReduction,
+      wallet,
+      travel,
+      yataStale: yata.length === 0,
+    };
   },
   ["finance-flying"],
   { revalidate: 120 },

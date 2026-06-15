@@ -92,3 +92,16 @@ export async function setTravelCapacity(capacity: number): Promise<void> {
   );
   revalidatePath("/finance/flying");
 }
+
+export async function setTravelTimeReduction(reduction: number): Promise<void> {
+  const session = await getSession();
+  if (!session) return;
+  const clamped = Math.max(0, Math.min(90, Math.round(reduction)));
+  await tryQuery(
+    `insert into user_finance_prefs (member_id, travel_time_reduction, updated_at)
+     values ($1, $2, now())
+     on conflict (member_id) do update set travel_time_reduction = excluded.travel_time_reduction, updated_at = now()`,
+    [session.tornId, clamped],
+  );
+  revalidatePath("/finance/flying");
+}
