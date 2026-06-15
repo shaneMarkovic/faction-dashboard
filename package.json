@@ -1,0 +1,20 @@
+{
+  "name": "torn-faction-dashboard",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Real-time multi-faction command center for Torn City",
+  "packageManager": "pnpm@10.30.3",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "collector:proof": "pnpm --filter @torn/collector proof",
+    "collector:dev": "pnpm --filter @torn/collector dev",
+    "web:dev": "pnpm --filter @torn/web dev",
+    "typecheck": "pnpm -r typecheck"
+  },
+  "devDependencies": {
+    "typescript": "^5.7.2",
+    "@types/node": "^22.10.2"
+  }
+}
