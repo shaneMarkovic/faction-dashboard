@@ -29,11 +29,20 @@ export async function connectFinanceKey(
   if (info.userId !== session.tornId) {
     return { ok: false, error: "That key belongs to a different Torn account." };
   }
-  if (info.accessLevelNum < 3) {
-    return {
-      ok: false,
-      error: "This key has too little access. Create a Custom key with the listed permissions.",
-    };
+
+  // Validate by GRANTED SELECTIONS, not access level: a Custom key reports a low
+  // numeric level but still grants exactly the selections it was created with.
+  // A Full Access key grants everything.
+  const REQUIRED = ["money", "personalstats", "log", "travel", "stocks"];
+  if (info.accessType !== "Full Access") {
+    const granted = new Set(info.userSelections);
+    const missing = REQUIRED.filter((s) => !granted.has(s));
+    if (missing.length > 0) {
+      return {
+        ok: false,
+        error: `Key is missing required permissions: ${missing.join(", ")}. Re-create a Custom key with all listed selections.`,
+      };
+    }
   }
 
   let encrypted: Buffer;
@@ -53,7 +62,7 @@ export async function connectFinanceKey(
   const saved = await tryQuery(
     `insert into api_keys (member_id, faction_id, encrypted_key, access_level, has_faction_access, purpose)
      values ($1, $2, $3, $4, false, 'personal')`,
-    [session.tornId, session.factionId, encrypted, info.accessLevel],
+    [session.tornId, session.factionId, encrypted, info.accessType || info.accessLevel],
   );
   if (saved == null) return { ok: false, error: "Couldn't save your key. Try again." };
 

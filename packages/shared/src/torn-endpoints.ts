@@ -42,6 +42,7 @@ function num(v: unknown): number {
 interface RawKeyInfo {
   info: {
     access: { level: number; type: string; faction: boolean };
+    selections?: { user?: string[] };
     user: { id: number; faction_id: number | null };
   };
 }
@@ -56,6 +57,8 @@ export async function fetchKeyInfo(client: TornClient): Promise<KeyInfo> {
   return {
     accessLevel: (ACCESS_LEVELS[level] ?? "Public") as KeyInfo["accessLevel"],
     accessLevelNum: level,
+    accessType: info.access.type ?? "",
+    userSelections: info.selections?.user ?? [],
     hasFactionAccess,
     tier,
     userId: info.user.id,

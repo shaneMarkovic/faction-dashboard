@@ -36,6 +36,10 @@ export interface KeyInfo {
   accessLevel: KeyAccessLevel;
   /** Numeric level from the API (1-5). */
   accessLevelNum: number;
+  /** Access type string from the API, e.g. "Custom", "Full Access". */
+  accessType: string;
+  /** The `user` selections this key grants (e.g. ["money","log",...]). */
+  userSelections: string[];
   /** True when the key has faction API access permissions. */
   hasFactionAccess: boolean;
   tier: FactionAccessTier;
