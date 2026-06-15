@@ -25,8 +25,15 @@ import {
   fetchUserTravel,
   fetchYataExport,
   predictArrival,
+  classifyItem,
+  hasMuseumValue,
+  hasIrregularRestock,
+  hasVariableQuality,
+  ENERGY_REGEN_WINDOW_MIN,
+  TRAVEL_COST,
   type ArrivalPrediction,
   type ForecastModel,
+  type ItemCategory,
   type ItemRef,
   type NetworthBreakdown,
   type PersonalStatsSubset,
@@ -456,6 +463,20 @@ export interface FlyingRow {
   /** 0..1 trust in the forecast (low while history is still accruing). */
   forecastConfidence: number;
   trend: ArrivalPrediction["trend"];
+  /** Item category derived from its Torn type (drives the flags below). */
+  category: ItemCategory;
+  /** Redeemable for Museum points — market margin understates real value. */
+  museumValue: boolean;
+  /** Random quality on purchase + slow to sell — listed value isn't reliable. */
+  variableQuality: boolean;
+  /** Restocks off the 15-min cycle — arrival forecast is less trustworthy. */
+  irregularRestock: boolean;
+  /** Energy deducted on landing at this destination. */
+  energyCost: number;
+  /** Total nerve the round trip consumes. */
+  nerveCost: number;
+  /** Round trip exceeds the ~5h energy-regen window (wastes regen). */
+  longHaul: boolean;
 }
 
 export interface FlyingData {
@@ -517,6 +538,7 @@ const loadFlyingOpportunitiesCached = unstable_cache(
 
     const priceById = new Map(items.map((it) => [it.id, it.marketValue]));
     const nameById = new Map(items.map((it) => [it.id, it.name]));
+    const typeById = new Map(items.map((it) => [it.id, it.type]));
     let maxConfidence = 0;
     let stockUpdatedAt = 0;
     const rows: FlyingRow[] = [];
@@ -525,6 +547,7 @@ const loadFlyingOpportunitiesCached = unstable_cache(
       const baseOneWay = FLIGHT_MINUTES[country.countryCode];
       const oneWayMin = baseOneWay ? Math.max(1, Math.round(baseOneWay * (1 - reduction))) : 0;
       const roundTripMin = oneWayMin * 2;
+      const cost = TRAVEL_COST[country.countryCode];
       for (const item of country.items) {
         const homePrice = priceById.get(item.id) ?? 0;
         if (homePrice <= 0) continue;
@@ -534,7 +557,13 @@ const loadFlyingOpportunitiesCached = unstable_cache(
         const costPerTrip = item.cost * tripUnits;
         const model = params[`${country.countryCode}:${item.id}`] ?? null;
         const pred = predictArrival(model, item.quantity, oneWayMin, capacity);
-        maxConfidence = Math.max(maxConfidence, pred.confidence);
+        const category = classifyItem(typeById.get(item.id));
+        const irregularRestock = hasIrregularRestock(category);
+        // Irregular-restock items (drugs, contraband artifacts) don't follow the
+        // 15-min cycle the model assumes — discount our trust so the UI shows
+        // them as "warming up" rather than implying a firm prediction.
+        const forecastConfidence = irregularRestock ? pred.confidence * 0.4 : pred.confidence;
+        maxConfidence = Math.max(maxConfidence, forecastConfidence);
         rows.push({
           countryCode: country.countryCode,
           countryName: COUNTRY_NAMES[country.countryCode] ?? country.countryCode,
@@ -554,8 +583,15 @@ const loadFlyingOpportunitiesCached = unstable_cache(
           cashLimited: costPerTrip > wallet,
           predictedOnArrival: pred.predictedQty,
           pSuccess: pred.pSuccess,
-          forecastConfidence: pred.confidence,
+          forecastConfidence,
           trend: pred.trend,
+          category,
+          museumValue: hasMuseumValue(category),
+          variableQuality: hasVariableQuality(category),
+          irregularRestock,
+          energyCost: cost?.energyLoss ?? 0,
+          nerveCost: cost?.nerve ?? 0,
+          longHaul: roundTripMin > ENERGY_REGEN_WINDOW_MIN,
         });
       }
     }
@@ -563,9 +599,11 @@ const loadFlyingOpportunitiesCached = unstable_cache(
     rows.sort((a, b) => b.tripProfit - a.tripProfit);
 
     // "Right now" = best RISK-ADJUSTED value: profit/min weighted by the
-    // probability the run actually survives the flight.
+    // probability the run actually survives the flight. Variable-quality items
+    // (weapons/armor) are excluded — their listed value isn't achievable, so
+    // they'd top the list on paper while being a poor real-world pick.
     const recommendations = rows
-      .filter((r) => r.profitPerItem > 0 && r.roundTripMin > 0 && !r.lowStock)
+      .filter((r) => r.profitPerItem > 0 && r.roundTripMin > 0 && !r.lowStock && !r.variableQuality)
       .sort((a, b) => b.profitPerMin * b.pSuccess - a.profitPerMin * a.pSuccess)
       .slice(0, 6);
 

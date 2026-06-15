@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, useTransition } from "react";
+import { type ReactNode, useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import type { FlyingRow } from "@/lib/finance";
 import { resetTravelCapacityAuto, setTravelCapacity, setTravelTimeReduction } from "@/app/(dash)/finance/actions";
@@ -14,6 +14,18 @@ const TREND: Record<string, { sym: string; color: string }> = {
   stable: { sym: "→", color: "#a4adbb" },
   unknown: { sym: "·", color: "#8b94a3" },
 };
+
+function Tag({ color, title, children }: { color: string; title: string; children: ReactNode }) {
+  return (
+    <span
+      title={title}
+      className="ml-1.5 rounded px-1 py-0.5 align-middle text-[10px] font-medium uppercase tracking-wide"
+      style={{ color, backgroundColor: `${color}22` }}
+    >
+      {children}
+    </span>
+  );
+}
 
 function odds(p: number, confidence: number): { text: string; color: string } {
   if (confidence < 0.3) return { text: "~", color: "#8b94a3" };
@@ -40,6 +52,7 @@ export function FlyingTable({
   const [asc, setAsc] = useState(false);
   const [cap, setCap] = useState(String(capacity));
   const [red, setRed] = useState(String(timeReduction));
+  const [under5h, setUnder5h] = useState(false);
   const [pending, start] = useTransition();
   const router = useRouter();
 
@@ -51,15 +64,17 @@ export function FlyingTable({
   const view = useMemo(() => {
     let out = rows.slice();
     if (country !== "all") out = out.filter((r) => r.countryName === country);
+    if (under5h) out = out.filter((r) => !r.longHaul);
     const dir = asc ? 1 : -1;
     out.sort((a, b) => dir * (a[sort] - b[sort]));
     return out;
-  }, [rows, country, sort, asc]);
+  }, [rows, country, sort, asc, under5h]);
 
   const save = (fn: () => Promise<void>) => start(async () => { await fn(); router.refresh(); });
   const saveCap = () => { const n = Number(cap); if (Number.isFinite(n)) save(() => setTravelCapacity(n)); };
   const useAuto = () => { setCap(String(detectedCapacity ?? capacity)); save(() => resetTravelCapacityAuto()); };
   const saveRed = () => { const n = Number(red); if (Number.isFinite(n)) save(() => setTravelTimeReduction(n)); };
+  const presetRed = (n: number) => { setRed(String(n)); save(() => setTravelTimeReduction(n)); };
 
   const toggle = (key: SortKey) =>
     sort === key ? setAsc(!asc) : (setSort(key), setAsc(false));
@@ -119,6 +134,15 @@ export function FlyingTable({
             onKeyDown={(e) => e.key === "Enter" && saveRed()}
             className="w-16 rounded-md border border-border bg-surface-2 px-2 py-1 text-sm text-foreground outline-none"
           />
+          <span className="flex gap-1">
+            <button type="button" onClick={() => presetRed(0)} className="rounded border border-border px-1.5 py-0.5 hover:text-foreground" title="No reduction (standard flights)">std</button>
+            <button type="button" onClick={() => presetRed(30)} className="rounded border border-border px-1.5 py-0.5 hover:text-foreground" title="Private island airstrip ≈ 30%">airstrip</button>
+            <button type="button" onClick={() => presetRed(48)} className="rounded border border-border px-1.5 py-0.5 hover:text-foreground" title="Airstrip + “Mailing Yourself Abroad” book (≈48% combined)">+book</button>
+          </span>
+        </label>
+        <label className="flex items-center gap-2" title="Hide destinations whose round trip is over ~5h — they cost energy/nerve and waste regen unless you're stacked or at war.">
+          <input type="checkbox" checked={under5h} onChange={(e) => setUnder5h(e.target.checked)} />
+          Under 5h
         </label>
         {pending && <span>saving…</span>}
         <span className="ml-auto">{view.length} items</span>
@@ -148,8 +172,17 @@ export function FlyingTable({
               const color = pos ? "#3fb950" : "#f85149";
               return (
                 <tr key={`${r.countryCode}-${r.itemId}`} className="border-t border-border hover:bg-surface-2/50">
-                  <td className="px-3 py-2">{r.itemName}</td>
-                  <td className="px-3 py-2 text-muted">{r.countryName}</td>
+                  <td className="px-3 py-2">
+                    {r.itemName}
+                    {r.museumValue && <Tag color="#a371f7" title="Redeemable for Museum points — worth more than market margin shows">museum</Tag>}
+                    {r.variableQuality && <Tag color="#d29922" title="Random quality on purchase and slow to sell — listed value isn't reliable">var. quality</Tag>}
+                    {r.irregularRestock && <Tag color="#8b94a3" title="Restocks off the 15-min cycle — arrival odds held low">irregular</Tag>}
+                  </td>
+                  <td className="px-3 py-2 text-muted">
+                    {r.countryName}
+                    {r.energyCost > 0 && <span className="ml-1 text-xs" style={{ color: "#d29922" }} title={`Costs ${r.energyCost} energy on landing`}>−{r.energyCost}⚡</span>}
+                    {r.longHaul && <span className="ml-1 text-xs" style={{ color: "#d29922" }} title="Round trip over ~5h">5h+</span>}
+                  </td>
                   <td className="px-3 py-2 text-right tabular-nums" style={{ color: r.lowStock ? "#d29922" : "#a4adbb" }}>
                     {r.stock.toLocaleString()}
                   </td>

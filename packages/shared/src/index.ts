@@ -4,4 +4,5 @@ export * from "./forecast";
 export * from "./realtime";
 export * from "./torn-client";
 export * from "./torn-endpoints";
+export * from "./travel";
 export * from "./yata";
