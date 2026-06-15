@@ -24,6 +24,53 @@ export function Dot({ color }: { color: string }) {
   return <span className="inline-block h-2 w-2 shrink-0 rounded-full" style={{ background: color }} />;
 }
 
+/** A Torn member name that links to their in-game profile (opens in a new tab). */
+export function ProfileLink({
+  id,
+  name,
+  className = "",
+}: {
+  id: number;
+  name: string;
+  className?: string;
+}) {
+  return (
+    <a
+      href={`https://www.torn.com/profiles.php?XID=${id}`}
+      target="_blank"
+      rel="noreferrer"
+      title={`Open ${name}'s Torn profile`}
+      className={`hover:text-[#58a6ff] hover:underline ${className}`}
+    >
+      {name}
+    </a>
+  );
+}
+
+/** A faction name that links to its in-game profile. Plain text if id is unknown. */
+export function FactionLink({
+  id,
+  name,
+  className = "",
+}: {
+  id: number;
+  name: string;
+  className?: string;
+}) {
+  if (!id) return <span className={className}>{name}</span>;
+  return (
+    <a
+      href={`https://www.torn.com/factions.php?step=profile&ID=${id}`}
+      target="_blank"
+      rel="noreferrer"
+      title={`Open ${name}'s Torn faction page`}
+      className={`hover:text-[#58a6ff] hover:underline ${className}`}
+    >
+      {name}
+    </a>
+  );
+}
+
 export function ProgressBar({ value, max, color = "#3fb950" }: { value: number; max: number; color?: string }) {
   const pct = max > 0 ? Math.min(100, (value / max) * 100) : 0;
   return (

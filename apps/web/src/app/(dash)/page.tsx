@@ -2,7 +2,7 @@ import Link from "next/link";
 import { loadActiveDashboard, resolveActiveFaction } from "@/lib/active-faction";
 import { loadChainHistory } from "@/lib/data";
 import { fmtMoney } from "@/lib/format";
-import { Badge, Dot, EmptyState, Panel, ProgressBar, STATUS_COLOR } from "@/components/ui";
+import { Badge, Dot, EmptyState, FactionLink, Panel, ProfileLink, ProgressBar, STATUS_COLOR } from "@/components/ui";
 import { Countdown, TimeAgo } from "@/components/Time";
 import { AreaChart } from "@/components/AreaChart";
 
@@ -136,7 +136,7 @@ export default async function OverviewPage() {
               <div className="text-muted">vs</div>
               <div className="text-right">
                 <div className="text-3xl font-bold tabular-nums">{activeWar.opponentScore}</div>
-                <div className="text-xs text-muted">{activeWar.opponentName}</div>
+                <FactionLink id={activeWar.opponentId} name={activeWar.opponentName} className="text-xs text-muted" />
               </div>
             </div>
           ) : (
@@ -161,7 +161,7 @@ export default async function OverviewPage() {
               <li key={m.tornId} className="flex items-center justify-between gap-2">
                 <span className="flex items-center gap-2 truncate">
                   <Dot color={STATUS_COLOR[m.statusState] ?? "#8b94a3"} />
-                  <span className="truncate">{m.name}</span>
+                  <ProfileLink id={m.tornId} name={m.name} className="truncate" />
                   <span className="text-xs text-muted">{m.position}</span>
                 </span>
                 <TimeAgo since={now - m.lastActionTs} className="shrink-0 text-xs text-muted" />

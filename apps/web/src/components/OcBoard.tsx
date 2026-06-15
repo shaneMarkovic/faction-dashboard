@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import type { Member, OcCrime } from "@torn/shared";
-import { Badge, EmptyState } from "./ui";
+import { Badge, EmptyState, ProfileLink } from "./ui";
 import { Countdown } from "./Time";
 
 type StatusFilter = "active" | "recruiting" | "planning" | "ready" | "all";
@@ -119,7 +119,7 @@ export function OcBoard({
                       return (
                         <li key={slotKey} className="flex items-center justify-between rounded-md bg-surface-2 px-2.5 py-1.5 text-sm">
                           <span className="truncate">
-                            <span className="text-muted">{s.position}</span> · {member?.name ?? `#${s.userId}`}
+                            <span className="text-muted">{s.position}</span> · <ProfileLink id={s.userId} name={member?.name ?? `#${s.userId}`} />
                           </span>
                           {s.cpr != null && (
                             <span className="shrink-0 text-xs" style={{ color: s.cpr >= 70 ? "#3fb950" : s.cpr >= 40 ? "#d29922" : "#f85149" }}>
@@ -143,7 +143,7 @@ export function OcBoard({
                             <div className="text-xs text-muted">Suggested idle members (highest level first) — assign them in Torn:</div>
                             {idle.slice(0, 6).map((m) => (
                               <div key={m.tornId} className="flex items-center justify-between text-xs">
-                                <span>{m.name}</span>
+                                <ProfileLink id={m.tornId} name={m.name} />
                                 <span className="text-muted">lvl {m.level}</span>
                               </div>
                             ))}

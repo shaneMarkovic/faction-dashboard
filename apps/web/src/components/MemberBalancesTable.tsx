@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import type { MemberBalance } from "@torn/shared";
 import { fmtMoney } from "@/lib/format";
+import { ProfileLink } from "./ui";
 
 type SortKey = "money" | "points" | "name";
 
@@ -72,7 +73,7 @@ export function MemberBalancesTable({ balances }: { balances: MemberBalance[] })
           <tbody>
             {rows.map((b) => (
               <tr key={b.memberId} className="border-t border-border hover:bg-surface-2/50">
-                <td className="px-3 py-2">{b.name}</td>
+                <td className="px-3 py-2"><ProfileLink id={b.memberId} name={b.name} /></td>
                 <td
                   className="px-3 py-2 text-right tabular-nums"
                   style={{ color: b.money < 0 ? "#f85149" : undefined }}

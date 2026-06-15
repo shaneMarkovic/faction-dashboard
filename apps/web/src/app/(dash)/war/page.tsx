@@ -1,6 +1,6 @@
 import { loadActiveDashboard, resolveActiveFaction } from "@/lib/active-faction";
 import { loadMemberProgress, loadWarRules } from "@/lib/data";
-import { Badge, EmptyState, Panel, ProgressBar } from "@/components/ui";
+import { Badge, EmptyState, FactionLink, Panel, ProfileLink, ProgressBar } from "@/components/ui";
 import { WarRulesEditor } from "@/components/WarRulesEditor";
 import { Countdown } from "@/components/Time";
 
@@ -43,7 +43,7 @@ export default async function WarPage() {
               </div>
               <div className="text-right">
                 <div className="text-4xl font-bold tabular-nums">{active.opponentScore}</div>
-                <div className="text-xs text-muted">{active.opponentName}</div>
+                <FactionLink id={active.opponentId} name={active.opponentName} className="text-xs text-muted" />
               </div>
             </div>
             <ProgressBar
@@ -83,7 +83,7 @@ export default async function WarPage() {
             <ul className="grid grid-cols-1 gap-1 text-sm sm:grid-cols-2">
               {blocked.map((p) => (
                 <li key={p.memberId} className="flex items-center justify-between gap-2">
-                  <span className="truncate">{p.name}</span>
+                  <ProfileLink id={p.memberId} name={p.name} className="truncate" />
                   <span className="flex gap-1">
                     {p.reasons.includes("faction_target") && <Badge color="#f85149">faction cap</Badge>}
                     {p.reasons.includes("member_score") && <Badge color="#d29922">score</Badge>}
@@ -114,7 +114,7 @@ export default async function WarPage() {
                   const win = w.score > w.opponentScore;
                   return (
                     <tr key={w.id} className="border-t border-border">
-                      <td className="px-3 py-2">{w.opponentName}</td>
+                      <td className="px-3 py-2"><FactionLink id={w.opponentId} name={w.opponentName} /></td>
                       <td className="px-3 py-2 text-right tabular-nums">
                         {w.score}–{w.opponentScore}
                       </td>

@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import type { Member } from "@torn/shared";
-import { Badge, Dot, STATUS_COLOR } from "./ui";
+import { Badge, Dot, ProfileLink, STATUS_COLOR } from "./ui";
 import { Countdown, TimeAgo } from "./Time";
 
 type FilterKey = "all" | "online" | "hospital" | "revivable" | "inactive" | "idle";
@@ -121,7 +121,7 @@ export function MembersTable({
               return (
                 <tr key={m.tornId} className="border-t border-border hover:bg-surface-2/50">
                   <td className="px-3 py-2">
-                    <div className="font-medium">{m.name}</div>
+                    <div className="font-medium"><ProfileLink id={m.tornId} name={m.name} /></div>
                     <div className="text-xs text-muted">{m.position}</div>
                   </td>
                   <td className="px-3 py-2">
