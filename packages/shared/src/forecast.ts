@@ -29,6 +29,8 @@ export interface ForecastModel {
   lastRestockTs: number | null;
   sampleCount: number;
   spanMinutes: number;
+  /** Highest stock level ever observed — a physical ceiling for predictions. */
+  maxObservedQty: number;
   /** 0..1 — how much to trust the model vs the cold-start prior. */
   confidence: number;
 }
@@ -113,19 +115,87 @@ export function computeForecastParams(obs: ObsPoint[]): ForecastModel {
     lastRestockTs,
     sampleCount: pts.length,
     spanMinutes,
+    maxObservedQty: pts.length ? Math.max(...pts.map((p) => p.quantity)) : 0,
     confidence,
   };
 }
 
 /**
+ * Expected restock units arriving within `horizonMin`, AND the variance from
+ * restock-TIMING uncertainty. `restockIntervalMin` is a median, so a restock
+ * scheduled near arrival may not have landed yet — we weight each scheduled
+ * restock by P(it has occurred by arrival) and add its Bernoulli variance, so
+ * odds that hinge on a just-in-time restock aren't reported as near-certain.
+ *
+ * `nowSec` enables phase alignment to the observed restock clock (via
+ * `lastRestockTs`); pass null for the legacy phase-blind count (back-compat).
+ */
+function restockStats(
+  m: ForecastModel,
+  horizonMin: number,
+  nowSec: number | null,
+): { units: number; variance: number } {
+  const interval = m.restockIntervalMin;
+  const amount = m.restockAmount;
+  if (!interval || interval <= 0 || amount == null || horizonMin <= 0) return { units: 0, variance: 0 };
+
+  // No phase reference → deterministic "every interval" count, no timing variance.
+  if (nowSec == null || m.lastRestockTs == null) {
+    return { units: Math.floor(horizonMin / interval) * amount, variance: 0 };
+  }
+
+  // Heuristic restock-timing jitter (std), until we measure interval variance.
+  const jitterMin = Math.max(2, 0.2 * interval);
+  const intervalSec = interval * 60;
+  const arrivalSec = nowSec + horizonMin * 60;
+  let units = 0;
+  let variance = 0;
+  // Walk scheduled restocks from the first after now; a restock scheduled up to
+  // ~4σ past arrival could still have landed early, so don't stop right at it.
+  let k = Math.floor((nowSec - m.lastRestockTs) / intervalSec) + 1;
+  for (let guard = 0; guard < 100000; guard++) {
+    const tSec = m.lastRestockTs + k * intervalSec;
+    const marginMin = (arrivalSec - tSec) / 60; // +ve: scheduled before arrival
+    if (marginMin < -4 * jitterMin) break;
+    const p = clamp01(normalCdf(marginMin / jitterMin));
+    units += amount * p;
+    variance += amount * amount * p * (1 - p);
+    k++;
+  }
+  return { units, variance };
+}
+
+/** Shared prediction core: stock + P(stock ≥ needed) at `horizonMin` ahead. */
+function predictCore(
+  m: ForecastModel,
+  currentQty: number,
+  horizonMin: number,
+  neededUnits: number,
+  nowSec: number | null,
+): { predictedQty: number; pSuccess: number; expDepletion: number; expRestock: number } {
+  const expDepletion = m.depletionRatePerMin * horizonMin;
+  const { units: expRestock, variance: restockVar } = restockStats(m, horizonMin, nowSec);
+  // Stock can't exceed the highest level ever observed (nor drop below 0). This
+  // caps the unbounded accumulation that long horizons would otherwise produce.
+  const ceiling = m.maxObservedQty > 0 ? Math.max(m.maxObservedQty, currentQty) : Number.POSITIVE_INFINITY;
+  const predictedQty = Math.min(ceiling, Math.max(0, currentQty - expDepletion + expRestock));
+  const sigma = Math.sqrt(Math.max(expDepletion, m.rateVar * horizonMin, 1) + restockVar);
+  const pSuccess = clamp01(normalCdf((predictedQty - neededUnits) / sigma));
+  return { predictedQty: Math.round(predictedQty), pSuccess, expDepletion, expRestock };
+}
+
+/**
  * Predict stock at arrival and the probability of getting `neededUnits`.
  * `oneWayMin` is the flight time to the destination. Cold-start safe.
+ * Pass `nowSec` to phase-align restocks to the observed clock (recommended);
+ * omit it for the legacy phase-blind estimate.
  */
 export function predictArrival(
   m: ForecastModel | null,
   currentQty: number,
   oneWayMin: number,
   neededUnits: number,
+  nowSec?: number,
 ): ArrivalPrediction {
   // Tier 0: too little history → assume roughly stable, low confidence.
   if (!m || m.confidence <= 0 || m.sampleCount < 3) {
@@ -136,22 +206,16 @@ export function predictArrival(
       trend: "unknown",
     };
   }
-
-  const expDepletion = m.depletionRatePerMin * oneWayMin;
-  const expRestock =
-    m.restockIntervalMin && m.restockAmount
-      ? Math.floor(oneWayMin / m.restockIntervalMin) * m.restockAmount
-      : 0;
-  const predictedQty = Math.max(0, currentQty - expDepletion + expRestock);
-
-  // Uncertainty: at least Poisson (var ≥ mean), plus measured over-dispersion.
-  const sigma = Math.sqrt(Math.max(expDepletion, m.rateVar * oneWayMin, 1));
-  const pSuccess = clamp01(normalCdf((predictedQty - neededUnits) / sigma));
-
+  const { predictedQty, pSuccess, expDepletion, expRestock } = predictCore(
+    m,
+    currentQty,
+    oneWayMin,
+    neededUnits,
+    nowSec ?? null,
+  );
   const trend: ArrivalPrediction["trend"] =
     expRestock > expDepletion ? "rising" : expDepletion > currentQty * 0.25 ? "falling" : "stable";
-
-  return { predictedQty: Math.round(predictedQty), pSuccess, confidence: m.confidence, trend };
+  return { predictedQty, pSuccess, confidence: m.confidence, trend };
 }
 
 // ===========================================================================
@@ -159,11 +223,9 @@ export function predictArrival(
 //
 // predictArrival answers "if I leave now". But the odds swing over the restock
 // cycle: stock is highest just after a restock and bleeds down until the next.
-// These helpers sweep departure times so the co-pilot can say "wait ~12 min for
-// the next restock and your odds jump from 49% to 86%". Unlike predictArrival
-// (which counts restocks naively from t=0), this is PHASE-ALIGNED to the item's
-// observed restock clock via lastRestockTs — so a recommended departure maps to
-// a real wall-clock moment.
+// forecastDepartureWindow sweeps departure times so the co-pilot can say "wait
+// ~12 min for the next restock and your odds jump from 49% to 86%", PHASE-ALIGNED
+// to the observed restock clock so a recommended departure maps to a real moment.
 // ===========================================================================
 
 /** Minutes until the next restock from `nowSec`, or null if cadence unknown. */
@@ -174,42 +236,6 @@ export function minutesToNextRestock(m: ForecastModel | null, nowSec: number): n
   const intoCycleSec = (((nowSec - m.lastRestockTs) % intervalSec) + intervalSec) % intervalSec;
   const remainingSec = intoCycleSec === 0 ? 0 : intervalSec - intoCycleSec;
   return remainingSec / 60;
-}
-
-/** Phase-aligned count of restocks landing in (nowSec, nowSec + horizonMin]. */
-function restocksWithin(m: ForecastModel, nowSec: number, horizonMin: number): number {
-  if (!m.restockIntervalMin || m.restockAmount == null || horizonMin <= 0) return 0;
-  const intervalSec = m.restockIntervalMin * 60;
-  if (intervalSec <= 0) return 0;
-  const endSec = nowSec + horizonMin * 60;
-  if (m.lastRestockTs == null) {
-    // No phase reference: fall back to the naive "every interval" count.
-    return Math.floor(horizonMin / m.restockIntervalMin) * m.restockAmount;
-  }
-  // First restock strictly after now, then every interval up to the horizon end.
-  const firstK = Math.floor((nowSec - m.lastRestockTs) / intervalSec) + 1;
-  const lastK = Math.floor((endSec - m.lastRestockTs) / intervalSec);
-  const count = Math.max(0, lastK - firstK + 1);
-  return count * m.restockAmount;
-}
-
-/** P(stock ≥ needed) when arriving `arriveInMin` from now — phase-aligned. */
-function predictAhead(
-  m: ForecastModel | null,
-  currentQty: number,
-  arriveInMin: number,
-  neededUnits: number,
-  nowSec: number,
-): { predictedQty: number; pSuccess: number } {
-  if (!m || m.confidence <= 0 || m.sampleCount < 3) {
-    return { predictedQty: currentQty, pSuccess: currentQty >= neededUnits ? 0.55 : 0.25 };
-  }
-  const expDepletion = m.depletionRatePerMin * arriveInMin;
-  const expRestock = restocksWithin(m, nowSec, arriveInMin);
-  const predictedQty = Math.max(0, currentQty - expDepletion + expRestock);
-  const sigma = Math.sqrt(Math.max(expDepletion, m.rateVar * arriveInMin, 1));
-  const pSuccess = clamp01(normalCdf((predictedQty - neededUnits) / sigma));
-  return { predictedQty: Math.round(predictedQty), pSuccess };
 }
 
 /** One sampled "depart in N minutes" point on the odds curve. */
@@ -229,6 +255,8 @@ export interface DepartureWindow {
   best: DepartureSample;
   /** Minutes until the next restock, or null if cadence unknown. */
   nextRestockInMin: number | null;
+  /** Restock cadence (minutes) — lets callers project restocks beyond the next. */
+  restockIntervalMin: number | null;
   /** Sampled odds curve, soonest → latest departure. */
   samples: DepartureSample[];
   /** 0..1 trust in the underlying forecast. */
@@ -255,7 +283,10 @@ export function forecastDepartureWindow(
   const step = horizonMin / (n - 1);
 
   const at = (departInMin: number): DepartureSample => {
-    const { predictedQty, pSuccess } = predictAhead(m, currentQty, departInMin + oneWayMin, neededUnits, nowSec);
+    if (!m || m.confidence <= 0 || m.sampleCount < 3) {
+      return { departInMin: Math.round(departInMin), predictedQty: currentQty, pSuccess: currentQty >= neededUnits ? 0.55 : 0.25 };
+    }
+    const { predictedQty, pSuccess } = predictCore(m, currentQty, departInMin + oneWayMin, neededUnits, nowSec);
     return { departInMin: Math.round(departInMin), predictedQty, pSuccess };
   };
 
@@ -270,6 +301,7 @@ export function forecastDepartureWindow(
     now,
     best,
     nextRestockInMin: minutesToNextRestock(m, nowSec),
+    restockIntervalMin: m?.restockIntervalMin ?? null,
     samples,
     confidence: m?.confidence ?? 0.1,
   };

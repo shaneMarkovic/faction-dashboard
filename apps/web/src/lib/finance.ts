@@ -186,6 +186,7 @@ export const loadForecastParams = unstable_cache(
         lastRestockTs: r.last_restock_ts == null ? null : Number(r.last_restock_ts),
         sampleCount: Number(r.sample_count),
         spanMinutes: Number(r.span_minutes),
+        maxObservedQty: r.max_observed_qty == null ? 0 : Number(r.max_observed_qty),
         confidence: Number(r.confidence),
       };
     }
@@ -561,7 +562,7 @@ const loadFlyingOpportunitiesCached = unstable_cache(
         const tripProfit = profitPerItem * tripUnits;
         const costPerTrip = item.cost * tripUnits;
         const model = params[`${country.countryCode}:${item.id}`] ?? null;
-        const pred = predictArrival(model, item.quantity, oneWayMin, capacity);
+        const pred = predictArrival(model, item.quantity, oneWayMin, capacity, nowSec());
         const category = classifyItem(typeById.get(item.id));
         const irregularRestock = hasIrregularRestock(category);
         // Irregular-restock items (drugs, contraband artifacts) don't follow the
@@ -646,6 +647,8 @@ export interface DepartureWindowData {
   best: DepartureSample;
   /** Minutes to the next restock, or null if cadence unknown. */
   nextRestockInMin: number | null;
+  /** Restock cadence (minutes) — restocks repeat every interval after the next. */
+  restockIntervalMin: number | null;
   /** Sampled odds curve, soonest → latest departure. */
   samples: DepartureSample[];
 }
@@ -688,6 +691,7 @@ export async function loadDepartureWindow(
     nowPSuccess: win.now.pSuccess,
     best: win.best,
     nextRestockInMin: win.nextRestockInMin,
+    restockIntervalMin: win.restockIntervalMin,
     samples: win.samples,
   };
 }

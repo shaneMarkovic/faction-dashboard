@@ -52,7 +52,7 @@ async function main(): Promise<void> {
         const targetTs = decision.ts + T * 60;
         const actual = obs.find((o) => Math.abs(o.ts - targetTs) <= TOLERANCE_MIN * 60);
         if (!actual) continue;
-        const pred = predictArrival(model, decision.quantity, T, NEEDED_UNITS);
+        const pred = predictArrival(model, decision.quantity, T, NEEDED_UNITS, decision.ts);
         absErr += Math.abs(pred.predictedQty - actual.quantity);
         const outcome = actual.quantity >= NEEDED_UNITS ? 1 : 0;
         brier += (pred.pSuccess - outcome) ** 2;
