@@ -16,10 +16,15 @@ export function CoPilotDock({
   settings,
   configured,
   initialChats,
+  collapsed,
+  onCollapse,
 }: {
   settings: ReactNode;
   configured: boolean;
   initialChats: AiChatSummary[];
+  /** Desktop-only: hidden when true (the launcher lives in FlyingWorkspace). */
+  collapsed: boolean;
+  onCollapse: () => void;
 }) {
   const [open, setOpen] = useState(false); // mobile drawer
   const [showSettings, setShowSettings] = useState(!configured);
@@ -38,7 +43,9 @@ export function CoPilotDock({
       <aside
         className={[
           open ? "fixed inset-x-2 bottom-2 top-16 z-40 flex flex-col" : "hidden",
-          "lg:sticky lg:top-4 lg:flex lg:max-h-[calc(100vh-2rem)] lg:flex-col lg:self-start",
+          collapsed
+            ? "lg:hidden"
+            : "lg:sticky lg:top-4 lg:flex lg:max-h-[calc(100vh-2rem)] lg:flex-col lg:self-start",
         ].join(" ")}
       >
         <div className="flex min-h-0 flex-1 flex-col rounded-2xl border border-border bg-surface shadow-lg lg:shadow-none">
@@ -69,6 +76,15 @@ export function CoPilotDock({
                 className="rounded-md px-2 py-1 text-sm hover:text-foreground lg:hidden"
               >
                 ✕
+              </button>
+              <button
+                type="button"
+                onClick={onCollapse}
+                title="Hide co-pilot"
+                aria-label="Hide co-pilot"
+                className="hidden rounded-md px-2 py-1 text-sm hover:text-foreground lg:inline"
+              >
+                ⟩
               </button>
             </div>
           </header>

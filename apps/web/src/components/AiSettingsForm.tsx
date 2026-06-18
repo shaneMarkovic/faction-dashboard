@@ -7,6 +7,7 @@ import {
   type AiConfigStatus,
   removeAiConfig,
   saveAiConfig,
+  updateAiModel,
 } from "@/app/(dash)/finance/ai-actions";
 
 type Providers = Record<AiProvider, ProviderInfo>;
@@ -42,11 +43,18 @@ export function AiSettingsForm({
     setError(null);
   };
 
+  // Same provider already configured, and no new key typed → switch model only,
+  // keeping the stored key. Otherwise do a full (re)validate + save.
+  const sameProvider = initial.configured && provider === initial.provider;
+  const modelOnly = sameProvider && !key.trim();
+
   const submit = () => {
     setError(null);
     setSaved(false);
     start(async () => {
-      const res = await saveAiConfig({ provider, model, key, baseUrl });
+      const res = modelOnly
+        ? await updateAiModel(model)
+        : await saveAiConfig({ provider, model, key, baseUrl });
       if (res.ok) {
         setKey("");
         setSaved(true);
@@ -158,13 +166,13 @@ export function AiSettingsForm({
       )}
 
       <label className="flex flex-col gap-1 text-xs text-muted">
-        API key
+        {sameProvider ? "API key — leave blank to keep current" : "API key"}
         <input
           type="password"
           value={key}
           onChange={(e) => setKey(e.target.value)}
           onKeyDown={(e) => e.key === "Enter" && submit()}
-          placeholder={info.keyHint}
+          placeholder={sameProvider ? `keeping …${initial.keyHint}` : info.keyHint}
           aria-label="AI provider API key"
           className="rounded-md border border-border bg-surface-2 px-2 py-2 text-sm text-foreground outline-none"
         />
@@ -178,7 +186,7 @@ export function AiSettingsForm({
           aria-busy={pending}
           className="rounded-md bg-[#22c48a] px-4 py-2 text-sm font-semibold text-[#0f0f0f] disabled:opacity-60"
         >
-          {pending ? "Validating…" : "Save key"}
+          {pending ? (modelOnly ? "Saving…" : "Validating…") : modelOnly ? "Save model" : "Save key"}
         </button>
         {initial.configured && (
           <button

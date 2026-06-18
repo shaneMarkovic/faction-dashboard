@@ -1,8 +1,8 @@
 import { redirect } from "next/navigation";
 import { getAiConfig } from "@/app/(dash)/finance/ai-actions";
 import { AiSettings } from "@/components/AiSettings";
-import { CoPilotDock } from "@/components/CoPilotDock";
 import { FlyingTable } from "@/components/FlyingTable";
+import { FlyingWorkspace } from "@/components/FlyingWorkspace";
 import { Countdown, TimeAgo } from "@/components/Time";
 import { Badge, EmptyState, Panel } from "@/components/ui";
 import { listAiChatsFor } from "@/lib/ai/chat-store";
@@ -108,9 +108,12 @@ export default async function FlyingPage() {
         )}
       </div>
 
-      <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_360px] lg:items-start">
-        {/* Main column: recommendations + collapsible table + how-it-works */}
-        <div className="min-w-0 space-y-4">
+      <FlyingWorkspace
+        configured={ai.configured}
+        initialChats={chats}
+        settings={<AiSettings />}
+        main={
+          <>
           <Panel title="Recommended runs" right={<span className="text-xs text-muted">risk-adjusted profit/hr</span>}>
             {!data ? (
               <EmptyState
@@ -164,15 +167,9 @@ export default async function FlyingPage() {
               actual fills vary.
             </div>
           </details>
-        </div>
-
-        {/* Co-pilot: sticky sidebar on desktop, drawer on mobile */}
-        <CoPilotDock
-          configured={ai.configured}
-          initialChats={chats}
-          settings={<AiSettings />}
-        />
-      </div>
+          </>
+        }
+      />
     </div>
   );
 }

@@ -117,6 +117,35 @@ export async function saveAiConfig(
   return { ok: true };
 }
 
+/**
+ * Switch the model while keeping the stored key. Only valid within the SAME
+ * provider — the stored key is provider-specific, so changing provider still
+ * requires re-entering a key via saveAiConfig.
+ */
+export async function updateAiModel(model: string): Promise<{ ok: boolean; error?: string }> {
+  const session = await getSession();
+  if (!session) return { ok: false, error: "Session expired — sign in again." };
+
+  const rows = await tryQuery<{ provider: AiProvider }>(
+    "select provider from user_ai_config where member_id = $1",
+    [session.tornId],
+  );
+  const provider = rows?.[0]?.provider;
+  if (!provider) return { ok: false, error: "No saved key yet — add a provider and key first." };
+
+  const next = (model || "").trim();
+  if (!isKnownModel(provider, next)) return { ok: false, error: "Pick a model for this provider." };
+
+  const saved = await tryQuery(
+    "update user_ai_config set model = $2, updated_at = now() where member_id = $1",
+    [session.tornId, next],
+  );
+  if (saved == null) return { ok: false, error: "Couldn't update the model. Try again." };
+
+  revalidatePath("/finance/flying");
+  return { ok: true };
+}
+
 export async function removeAiConfig(): Promise<void> {
   const session = await getSession();
   if (!session) return;
