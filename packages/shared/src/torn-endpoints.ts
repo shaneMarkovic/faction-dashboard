@@ -23,6 +23,8 @@ import type {
   RankedWar,
   RankedWarReport,
   StockRef,
+  UserBar,
+  UserBars,
   UserInventoryItem,
   UserLogEntry,
   UserMoney,
@@ -410,6 +412,26 @@ export async function fetchUserMoney(client: TornClient): Promise<UserMoney> {
     company: num(money.company),
     points: num(money.points),
     dailyNetworth: num(money.daily_networth),
+  };
+}
+
+// --- /user/bars -----------------------------------------------------------
+
+export async function fetchUserBars(client: TornClient): Promise<UserBars> {
+  const { bars } = await client.get<{ bars: Record<string, unknown> }>("/user/bars");
+  const oneBar = (raw: unknown): UserBar => {
+    const b = (raw ?? {}) as Record<string, unknown>;
+    const current = num(b.current);
+    const maximum = num(b.maximum);
+    // `fulltime` is seconds until full; 0 (or already full) → null.
+    const full = b.fulltime != null ? num(b.fulltime) : null;
+    return { current, maximum, fullInSec: full && full > 0 && current < maximum ? full : null };
+  };
+  return {
+    energy: oneBar(bars.energy),
+    nerve: oneBar(bars.nerve),
+    happy: oneBar(bars.happy),
+    life: oneBar(bars.life),
   };
 }
 

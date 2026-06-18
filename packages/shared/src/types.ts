@@ -254,6 +254,22 @@ export interface NetworthBreakdown {
   other: number;
 }
 
+/** A single status bar (energy/nerve/happy/life). */
+export interface UserBar {
+  current: number;
+  maximum: number;
+  /** Seconds until the bar is full again, or null if already full / unknown. */
+  fullInSec: number | null;
+}
+
+/** Current status bars (GET /user/bars → `bars`). */
+export interface UserBars {
+  energy: UserBar;
+  nerve: UserBar;
+  happy: UserBar;
+  life: UserBar;
+}
+
 /** Current travel status (GET /user/travel → `travel`). */
 export interface UserTravelStatus {
   traveling: boolean;

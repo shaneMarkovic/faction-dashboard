@@ -16,13 +16,19 @@ import { z } from "zod";
 import {
   fetchNetworthBreakdown,
   fetchStocksRef,
+  fetchUserBars,
   fetchUserLog,
   fetchUserMoney,
   fetchUserPersonalStats,
   fetchUserStocks,
   fetchUserTravel,
 } from "@torn/shared";
-import { type FlyingRow, getFinancePrefs, loadFlyingOpportunities } from "@/lib/finance";
+import {
+  type FlyingRow,
+  getFinancePrefs,
+  loadDepartureWindow,
+  loadFlyingOpportunities,
+} from "@/lib/finance";
 import { type PersonalClient, personalTornClient } from "@/lib/torn";
 
 const NO_KEY =
@@ -187,10 +193,46 @@ export function buildFinanceTools(memberId: number): ToolSet {
     }),
 
     get_travel_status: tool({
-      description: "Whether the user is currently travelling, the destination, and time left until they land.",
+      description:
+        "Whether the user is currently travelling, the destination, and how long until they land. Returns a clear `status` ('home' | 'travelling' | 'abroad') and `landingInMin` so you never have to interpret raw flags.",
       inputSchema: z.object({}),
       execute: () =>
-        withClient((pc) => fetchUserTravel(pc.client, Math.floor(Date.now() / 1000))),
+        withClient(async (pc) => {
+          const t = await fetchUserTravel(pc.client, Math.floor(Date.now() / 1000));
+          const landingInMin = t.timeLeft != null ? Math.round(t.timeLeft / 60) : null;
+          // traveling=false with time left = inbound flight home (Torn reports the
+          // return leg without a foreign destination). Make that explicit.
+          const status: "home" | "travelling" | "abroad" =
+            t.traveling ? "travelling" : landingInMin && landingInMin > 0 ? "travelling" : t.destination ? "abroad" : "home";
+          return { ...t, status, landingInMin };
+        }),
+    }),
+
+    get_user_bars: tool({
+      description:
+        "The user's current energy, nerve, happy and life bars (current/maximum, and seconds until full). Use this before recommending a run so you can flag when they're short on the energy/nerve a trip costs, or when energy/nerve will overflow during a long haul.",
+      inputSchema: z.object({}),
+      execute: () => withClient((pc) => fetchUserBars(pc.client)),
+    }),
+
+    get_departure_window: tool({
+      description:
+        "How a specific country+item's arrival odds (pSuccess) change depending on WHEN the user departs. Answers 'is there a better time to fly', 'when will the odds improve', 'when's the next restock'. Returns current odds, the best departure time in the next few hours, minutes to the next restock, and a sampled odds curve. Quote nextRestockInMin and the best departure plainly; respect forecastConfidence (low = warming up, don't over-promise).",
+      inputSchema: z.object({
+        country: z.string().describe("Country name, e.g. 'China'."),
+        item: z.string().describe("Item name (partial ok), e.g. 'Pangolin Scales'."),
+      }),
+      execute: async ({ country, item }) => {
+        const prefs = await getFinancePrefs(memberId);
+        const res = await loadDepartureWindow(memberId, country, item, prefs.capacityOverride, prefs.timeReduction);
+        if (!res) return { error: NO_KEY };
+        if ("notFound" in res) {
+          return {
+            error: `No current opportunity matches "${item}"${country ? ` in ${country}` : ""}. It may be out of stock or not tracked right now.`,
+          };
+        }
+        return res;
+      },
     }),
 
     get_recent_money_log: tool({

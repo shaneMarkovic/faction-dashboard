@@ -25,6 +25,8 @@ import {
   fetchUserTravel,
   fetchYataExport,
   predictArrival,
+  forecastDepartureWindow,
+  type DepartureSample,
   classifyItem,
   hasMuseumValue,
   hasIrregularRestock,
@@ -171,7 +173,7 @@ const loadCurrentStock = unstable_cache(
  * Per-item forecast params (written by the collector), as a serializable record
  * keyed "country:item" (a Map wouldn't survive unstable_cache serialization).
  */
-const loadForecastParams = unstable_cache(
+export const loadForecastParams = unstable_cache(
   async (): Promise<Record<string, ForecastModel>> => {
     const rows = await tryQuery<Record<string, unknown>>("select * from forecast_params");
     const out: Record<string, ForecastModel> = {};
@@ -629,3 +631,63 @@ const loadFlyingOpportunitiesCached = unstable_cache(
   { revalidate: 120 },
 );
 export const loadFlyingOpportunities = guarded(loadFlyingOpportunitiesCached);
+
+export interface DepartureWindowData {
+  country: string;
+  item: string;
+  capacity: number;
+  oneWayMin: number;
+  currentStock: number;
+  /** 0..1 trust in the forecast. */
+  forecastConfidence: number;
+  /** Odds (0..1) if you leave right now. */
+  nowPSuccess: number;
+  /** Best departure within the horizon. */
+  best: DepartureSample;
+  /** Minutes to the next restock, or null if cadence unknown. */
+  nextRestockInMin: number | null;
+  /** Sampled odds curve, soonest → latest departure. */
+  samples: DepartureSample[];
+}
+
+/**
+ * Timing curve for one country+item: how arrival odds change with departure
+ * time. Reuses the same capacity / flight-time / current-stock the table shows,
+ * then phase-aligns to the item's restock clock. Returns `{ notFound: true }`
+ * when the item isn't in the current opportunity set, or null with no key.
+ */
+export async function loadDepartureWindow(
+  memberId: number,
+  countryQuery: string,
+  itemQuery: string,
+  capacityOverride: number | null,
+  timeReduction: number,
+): Promise<DepartureWindowData | { notFound: true } | null> {
+  const data = await loadFlyingOpportunities(memberId, capacityOverride, timeReduction);
+  if (!data) return null;
+  const cq = countryQuery.trim().toLowerCase();
+  const iq = itemQuery.trim().toLowerCase();
+  const matchItem = (r: FlyingRow) => r.itemName.toLowerCase().includes(iq);
+  const row =
+    data.rows.find((r) => r.countryName.toLowerCase() === cq && matchItem(r)) ??
+    data.rows.find(matchItem);
+  if (!row) return { notFound: true };
+
+  const params = await loadForecastParams();
+  const model = params[`${row.countryCode}:${row.itemId}`] ?? null;
+  const oneWayMin = Math.max(1, Math.round(row.roundTripMin / 2));
+  const win = forecastDepartureWindow(model, row.stock, oneWayMin, data.capacity, nowSec());
+
+  return {
+    country: row.countryName,
+    item: row.itemName,
+    capacity: data.capacity,
+    oneWayMin,
+    currentStock: row.stock,
+    forecastConfidence: row.forecastConfidence,
+    nowPSuccess: win.now.pSuccess,
+    best: win.best,
+    nextRestockInMin: win.nextRestockInMin,
+    samples: win.samples,
+  };
+}
