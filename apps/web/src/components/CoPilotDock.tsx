@@ -30,11 +30,18 @@ export function CoPilotDock({
   const [showSettings, setShowSettings] = useState(!configured);
   const [chats, setChats] = useState<AiChatSummary[]>(initialChats);
 
-  // `key` forces a fresh useChat on session switch; `id`/`initial` seed it.
-  const [view, setView] = useState<{ key: number; id?: string; initial?: UIMessage[] }>({ key: 0 });
+  // Each chat has a stable client-generated id so useChat keeps its messages
+  // across re-renders (e.g. when the session list refreshes after a turn) and
+  // the server persists under that same id. `key` forces a fresh useChat on
+  // switch; `initial` seeds a resumed conversation.
+  const [view, setView] = useState<{ key: number; id: string; initial: UIMessage[] }>(() => ({
+    key: 0,
+    id: crypto.randomUUID(),
+    initial: [],
+  }));
 
   const refreshChats = () => void listAiChats().then(setChats);
-  const newChat = () => setView((v) => ({ key: v.key + 1, id: undefined, initial: undefined }));
+  const newChat = () => setView((v) => ({ key: v.key + 1, id: crypto.randomUUID(), initial: [] }));
   const openChat = (id: string) =>
     void getAiChat(id).then((messages) => setView((v) => ({ key: v.key + 1, id, initial: messages })));
 

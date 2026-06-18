@@ -1,6 +1,6 @@
 "use client";
 
-import { type ReactNode, useState } from "react";
+import { type ReactNode, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { type UIMessage, useChat } from "@ai-sdk/react";
 import { DefaultChatTransport, lastAssistantMessageIsCompleteWithToolCalls } from "ai";
@@ -76,11 +76,13 @@ export function FlyingChat({
 }) {
   const [input, setInput] = useState("");
   const router = useRouter();
+  // Memoize so re-renders don't hand useChat a new transport instance.
+  const transport = useMemo(() => new DefaultChatTransport({ api: "/api/finance-chat" }), []);
 
   const { messages, sendMessage, addToolOutput, status, error } = useChat({
     id: chatId,
     messages: initialMessages,
-    transport: new DefaultChatTransport({ api: "/api/finance-chat" }),
+    transport,
     sendAutomaticallyWhen: lastAssistantMessageIsCompleteWithToolCalls,
     onFinish: () => onTurnFinish?.(),
     // Client-side tools: apply view changes to the shared store, route persisted
