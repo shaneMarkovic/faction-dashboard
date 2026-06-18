@@ -26,7 +26,7 @@ export default async function WarPage() {
     <div className="mx-auto max-w-6xl space-y-4">
       <div className="flex items-center justify-between">
         <h1 className="text-lg font-bold">Ranked War</h1>
-        <span className="text-xs text-muted">{wins}W–{history.length - wins}L · {history.length} wars</span>
+        <span className="text-xs text-white/75">{wins}W–{history.length - wins}L · {history.length} wars</span>
       </div>
 
       <Panel title="Active war">

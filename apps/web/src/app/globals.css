@@ -82,6 +82,17 @@ body {
   border-radius: 0 !important;
 }
 
+/* Page content floats on the teal desktop, where `main` sets light text so loose
+   headings read white-on-blue. Every chrome surface resets text to black so panel
+   / table / tile content stays dark-on-beige. (Title bars re-assert white on
+   themselves, so they're unaffected.) */
+.xp-window,
+.bevel-out,
+.bevel-in,
+.xp-table {
+  color: #000;
+}
+
 /* ---- Bevels --------------------------------------------------------------- */
 
 /* Raised (button/panel face) — light top-left, dark bottom-right. */

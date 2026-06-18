@@ -30,12 +30,10 @@ export default async function DashLayout({
             {session && <LogoutButton name={session.name} />}
           </div>
         </header>
-        {/* Recessed light "client workspace" so page headings, tab strips and
-            plain text don't sit on the saturated teal desktop (unreadable).
-            Panels/windows float on top of this gray, classic MDI-app style. */}
-        <main className="flex-1 bg-[#d6d3c6] p-3 [box-shadow:inset_1px_1px_0_#b8b4a2,inset_-1px_-1px_0_#fbfaf6]">
-          {children}
-        </main>
+        {/* Content floats on the teal desktop (shows through). Default text is
+            light so loose page headings read on the blue; chrome surfaces reset
+            to black text (see globals.css) so panel content stays readable. */}
+        <main className="flex-1 p-3 text-white">{children}</main>
       </div>
     </div>
   );

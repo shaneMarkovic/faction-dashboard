@@ -50,7 +50,7 @@ export default async function OverviewPage() {
     <div className="mx-auto max-w-6xl space-y-5">
       <div className="flex items-center justify-between">
         <h1 className="text-lg font-bold">Overview</h1>
-        <span className="text-xs text-muted">
+        <span className="text-xs text-white/75">
           {d.source === "live" ? "Live from Torn" : "Cached"} · updated <TimeAgo since={dataAge} />
         </span>
       </div>
