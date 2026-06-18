@@ -48,7 +48,7 @@ export function CashflowSummary({
       <Panel
         title="Weekly cash flow"
         right={
-          <span className="text-sm tabular-nums" style={{ color: totalNet >= 0 ? "#3fb950" : "#f85149" }}>
+          <span className="text-sm tabular-nums" style={{ color: totalNet >= 0 ? "#1d7d2e" : "#cc0000" }}>
             net {fmtMoney(totalNet)}
           </span>
         }
@@ -64,30 +64,30 @@ export function CashflowSummary({
                 <div className="w-16 shrink-0 text-muted">{fmtWeek(w.weekStart)}</div>
                 <div className="flex-1 space-y-1">
                   <div className="h-2 rounded-full bg-surface-2">
-                    <div className="h-full rounded-full" style={{ width: `${(w.income / maxBar) * 100}%`, background: "#3fb950" }} />
+                    <div className="h-full rounded-full" style={{ width: `${(w.income / maxBar) * 100}%`, background: "#1d7d2e" }} />
                   </div>
                   <div className="h-2 rounded-full bg-surface-2">
-                    <div className="h-full rounded-full" style={{ width: `${(w.expense / maxBar) * 100}%`, background: "#f85149" }} />
+                    <div className="h-full rounded-full" style={{ width: `${(w.expense / maxBar) * 100}%`, background: "#cc0000" }} />
                   </div>
                 </div>
                 <div className="w-44 shrink-0 text-right tabular-nums">
-                  <span style={{ color: "#3fb950" }}>{fmtMoney(w.income)}</span>
+                  <span style={{ color: "#1d7d2e" }}>{fmtMoney(w.income)}</span>
                   {" / "}
-                  <span style={{ color: "#f85149" }}>{fmtMoney(w.expense)}</span>
+                  <span style={{ color: "#cc0000" }}>{fmtMoney(w.expense)}</span>
                 </div>
               </div>
             ))}
             <div className="flex gap-4 pt-1 text-xs text-muted">
-              <span><span className="mr-1 inline-block h-2 w-2 rounded-full align-middle" style={{ background: "#3fb950" }} />income</span>
-              <span><span className="mr-1 inline-block h-2 w-2 rounded-full align-middle" style={{ background: "#f85149" }} />expense</span>
+              <span><span className="mr-1 inline-block h-2 w-2 rounded-full align-middle" style={{ background: "#1d7d2e" }} />income</span>
+              <span><span className="mr-1 inline-block h-2 w-2 rounded-full align-middle" style={{ background: "#cc0000" }} />expense</span>
             </div>
           </div>
         )}
       </Panel>
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-        <Panel title="Income by category">{catList(incomeCats, "income", "#3fb950")}</Panel>
-        <Panel title="Expenses by category">{catList(expenseCats, "expense", "#f85149")}</Panel>
+        <Panel title="Income by category">{catList(incomeCats, "income", "#1d7d2e")}</Panel>
+        <Panel title="Expenses by category">{catList(expenseCats, "expense", "#cc0000")}</Panel>
       </div>
 
       <Panel title="Recent money movements">
@@ -103,7 +103,7 @@ export function CashflowSummary({
                     <td className="px-3 py-2 text-right text-xs text-muted">{relativeFromUnix(e.timestamp)}</td>
                     <td
                       className="px-3 py-2 text-right tabular-nums"
-                      style={{ color: e.money >= 0 ? "#3fb950" : "#f85149" }}
+                      style={{ color: e.money >= 0 ? "#1d7d2e" : "#cc0000" }}
                     >
                       {fmtMoney(e.money)}
                     </td>

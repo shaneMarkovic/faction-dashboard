@@ -15,22 +15,22 @@ export default async function DashLayout({
   return (
     <div className="flex min-h-screen flex-col md:flex-row">
       <Sidebar />
-      <div className="flex min-w-0 flex-1 flex-col">
-        <header className="flex flex-wrap items-center justify-between gap-3 border-b border-border bg-surface/60 px-4 py-3">
-          <div className="min-w-0">
-            <div className="truncate text-base font-bold">
-              {active ? active.name : "Faction"}{" "}
-              {active?.tag && <span className="text-muted">[{active.tag}]</span>}
-            </div>
-            <div className="text-xs text-muted">Faction Command Center</div>
+      <div className="flex min-w-0 flex-1 flex-col p-1">
+        <header className="xp-window mb-1 flex flex-col">
+          <div className="xp-titlebar">
+            <span className="truncate">
+              {active ? active.name : "Faction"}
+              {active?.tag && <span className="font-normal opacity-90"> [{active.tag}]</span>}
+              <span className="font-normal opacity-90"> — Faction Command Center</span>
+            </span>
           </div>
-          <div className="flex items-center gap-3">
+          <div className="flex flex-wrap items-center justify-end gap-2 px-2 py-1">
             <LiveRefresh factionId={activeId} />
             <FactionSwitcher factions={factions} activeId={activeId} />
             {session && <LogoutButton name={session.name} />}
           </div>
         </header>
-        <main className="flex-1 p-4">{children}</main>
+        <main className="flex-1">{children}</main>
       </div>
     </div>
   );

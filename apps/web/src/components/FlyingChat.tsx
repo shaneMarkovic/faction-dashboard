@@ -24,7 +24,7 @@ function toolLabel(type: string): string {
 /** Render assistant markdown (bold, lists, code, links) with our styling. */
 function Markdown({ children }: { children: string }) {
   return (
-    <div className="space-y-2 leading-relaxed [&_a]:text-[#58a6ff] [&_a]:underline [&_code]:rounded [&_code]:bg-surface-2 [&_code]:px-1 [&_code]:py-0.5 [&_code]:text-xs [&_h1]:font-semibold [&_h2]:font-semibold [&_h3]:font-semibold [&_li]:my-0.5 [&_ol]:list-decimal [&_ol]:pl-5 [&_strong]:font-semibold [&_strong]:text-foreground [&_ul]:list-disc [&_ul]:pl-5">
+    <div className="space-y-2 leading-relaxed [&_a]:text-[#0000cc] [&_a]:underline [&_code]:rounded [&_code]:bg-surface-2 [&_code]:px-1 [&_code]:py-0.5 [&_code]:text-xs [&_h1]:font-semibold [&_h2]:font-semibold [&_h3]:font-semibold [&_li]:my-0.5 [&_ol]:list-decimal [&_ol]:pl-5 [&_strong]:font-semibold [&_strong]:text-foreground [&_ul]:list-disc [&_ul]:pl-5">
       <ReactMarkdown remarkPlugins={[remarkGfm]}>{children}</ReactMarkdown>
     </div>
   );
@@ -167,12 +167,12 @@ export function FlyingChat({
         {messages.map((m) =>
           m.role === "user" ? (
             <div key={m.id} className="flex justify-end">
-              <div className="max-w-[85%] rounded-2xl bg-[#22c48a]/15 px-3 py-2 text-sm">
+              <div className="bevel-out max-w-[85%] bg-[#dbe7d6] px-3 py-2 text-sm">
                 {m.parts.map((p, i) => (p.type === "text" ? <span key={i} className="whitespace-pre-wrap">{p.text}</span> : null))}
               </div>
             </div>
           ) : (
-            <div key={m.id} className="rounded-2xl bg-surface-2/40 px-3 py-2 text-sm">
+            <div key={m.id} className="bevel-in bg-surface-2 px-3 py-2 text-sm">
               <AssistantParts parts={m.parts} />
             </div>
           ),
@@ -182,7 +182,7 @@ export function FlyingChat({
       </div>
 
       {error && (
-        <p role="alert" className="text-sm text-[#f85149]">
+        <p role="alert" className="text-sm text-[#cc0000]">
           {error.message || "Something went wrong — try again."}
         </p>
       )}
@@ -204,7 +204,7 @@ export function FlyingChat({
         <button
           type="submit"
           disabled={busy || !input.trim()}
-          className="rounded-md bg-[#22c48a] px-4 py-2 text-sm font-semibold text-[#0f0f0f] disabled:opacity-60"
+          className="xp-btn disabled:opacity-60"
         >
           {busy ? "…" : "Send"}
         </button>

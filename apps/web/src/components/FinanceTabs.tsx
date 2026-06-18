@@ -47,7 +47,7 @@ export function FinanceTabs() {
       <button
         onClick={disconnect}
         disabled={pending}
-        className="ml-auto text-xs text-muted hover:text-[#f85149] disabled:opacity-60"
+        className="ml-auto text-xs text-muted hover:text-[#cc0000] disabled:opacity-60"
       >
         {pending ? "Disconnecting…" : "Disconnect key"}
       </button>

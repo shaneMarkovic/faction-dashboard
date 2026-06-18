@@ -46,7 +46,7 @@ export function NetworthBreakdownView({
         </Panel>
         <Panel title="History (millions)" className="lg:col-span-2">
           {chartPoints.length >= 2 ? (
-            <AreaChart points={chartPoints} color="#3fb950" unit="m" />
+            <AreaChart points={chartPoints} color="#1d7d2e" unit="m" />
           ) : (
             <div className="py-8 text-center text-sm text-muted">
               History builds over time — and seeds from your personal stats on first connect.
@@ -61,11 +61,11 @@ export function NetworthBreakdownView({
             <div key={r.key} className="flex items-center gap-3">
               <div className="w-28 shrink-0 text-sm text-muted">{r.label}</div>
               <div className="flex-1">
-                <ProgressBar value={Math.abs(r.value)} max={Math.abs(breakdown.total) || 1} color="#3fb950" />
+                <ProgressBar value={Math.abs(r.value)} max={Math.abs(breakdown.total) || 1} color="#1d7d2e" />
               </div>
               <div
                 className="w-24 shrink-0 text-right text-sm tabular-nums"
-                style={{ color: r.value < 0 ? "#f85149" : undefined }}
+                style={{ color: r.value < 0 ? "#cc0000" : undefined }}
               >
                 {fmtMoney(r.value)}
               </div>

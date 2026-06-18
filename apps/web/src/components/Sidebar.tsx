@@ -5,12 +5,12 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 
 const NAV = [
-  { href: "/", label: "Overview", icon: "◆" },
-  { href: "/members", label: "Members", icon: "👥" },
-  { href: "/oc", label: "OC Board", icon: "🎯" },
-  { href: "/war", label: "War", icon: "⚔" },
-  { href: "/treasury", label: "Treasury", icon: "💰" },
-  { href: "/finance", label: "Finance", icon: "✈" },
+  { href: "/", label: "Overview" },
+  { href: "/members", label: "Members" },
+  { href: "/oc", label: "OC Board" },
+  { href: "/war", label: "War" },
+  { href: "/treasury", label: "Treasury" },
+  { href: "/finance", label: "Finance" },
 ];
 
 export function Sidebar() {
@@ -26,28 +26,32 @@ export function Sidebar() {
   return (
     <nav
       aria-label="Primary"
-      className="flex shrink-0 flex-row gap-1 overflow-x-auto border-b border-border bg-surface p-2 md:w-52 md:flex-col md:border-b-0 md:border-r md:p-3"
+      className="xp-window m-1 flex shrink-0 flex-row gap-px overflow-x-auto md:m-1 md:w-48 md:flex-col"
     >
-      <div className="hidden px-2 pb-3 text-sm font-bold md:block">
-        <span aria-hidden="true">⚡</span> Torn Ops
+      <div className="xp-titlebar mb-px hidden md:flex">
+        <span className="truncate">⚡ Torn Ops</span>
       </div>
-      {NAV.map((item) => {
-        const active = item.href === "/" ? pathname === "/" : pathname.startsWith(item.href);
-        return (
-          <Link
-            key={item.href}
-            href={item.href}
-            ref={active ? activeRef : undefined}
-            aria-current={active ? "page" : undefined}
-            className={`flex items-center gap-2 whitespace-nowrap rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
-              active ? "bg-surface-2 text-foreground" : "text-muted hover:text-foreground"
-            }`}
-          >
-            <span className="text-xs opacity-80" aria-hidden="true">{item.icon}</span>
-            {item.label}
-          </Link>
-        );
-      })}
+      <ul className="flex flex-row gap-px p-px md:flex-col">
+        {NAV.map((item) => {
+          const active = item.href === "/" ? pathname === "/" : pathname.startsWith(item.href);
+          return (
+            <li key={item.href}>
+              <Link
+                href={item.href}
+                ref={active ? activeRef : undefined}
+                aria-current={active ? "page" : undefined}
+                className={`block whitespace-nowrap px-3 py-1 text-[12px] font-bold ${
+                  active
+                    ? "bg-[var(--select)] text-white"
+                    : "text-black hover:bg-[#d8d4c0]"
+                }`}
+              >
+                {item.label}
+              </Link>
+            </li>
+          );
+        })}
+      </ul>
     </nav>
   );
 }

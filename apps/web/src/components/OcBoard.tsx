@@ -16,11 +16,11 @@ const STATUS_FILTERS: { key: StatusFilter; label: string }[] = [
 ];
 
 function statusColor(s: string): string {
-  if (s === "Recruiting") return "#d29922";
-  if (s === "Planning") return "#58a6ff";
-  if (s === "Successful") return "#3fb950";
-  if (s === "Failure") return "#f85149";
-  return "#8b94a3";
+  if (s === "Recruiting") return "#b8860b";
+  if (s === "Planning") return "#0000cc";
+  if (s === "Successful") return "#1d7d2e";
+  if (s === "Failure") return "#cc0000";
+  return "#606060";
 }
 
 export function OcBoard({
@@ -69,9 +69,8 @@ export function OcBoard({
             <button
               key={f.key}
               onClick={() => setFilter(f.key)}
-              className={`rounded-full px-3 py-1 text-xs font-medium transition-colors ${
-                filter === f.key ? "bg-surface-2 text-foreground" : "text-muted hover:text-foreground"
-              }`}
+              aria-pressed={filter === f.key}
+              className="xp-toggle"
             >
               {f.label}
             </button>
@@ -89,7 +88,7 @@ export function OcBoard({
             const ready = c.readyAt != null && c.readyAt <= now;
             const expiringSoon = c.expiredAt != null && c.expiredAt - now < 86400 && c.expiredAt > now;
             return (
-              <section key={c.id} className="rounded-xl border border-border bg-surface p-4">
+              <section key={c.id} className="bevel-out bg-surface p-3">
                 <header className="mb-3 flex items-start justify-between gap-2">
                   <div>
                     <div className="font-semibold">{c.name}</div>
@@ -97,9 +96,9 @@ export function OcBoard({
                   </div>
                   <div className="flex flex-col items-end gap-1">
                     <Badge color={statusColor(c.status)}>{c.status}</Badge>
-                    {ready && <Badge color="#3fb950">ready</Badge>}
+                    {ready && <Badge color="#1d7d2e">ready</Badge>}
                     {expiringSoon && (
-                      <Badge color="#f85149">expires <Countdown seconds={c.expiredAt! - now} /></Badge>
+                      <Badge color="#cc0000">expires <Countdown seconds={c.expiredAt! - now} /></Badge>
                     )}
                   </div>
                 </header>
@@ -117,12 +116,12 @@ export function OcBoard({
                     const slotKey = `${c.id}:${i}`;
                     if (s.userId != null) {
                       return (
-                        <li key={slotKey} className="flex items-center justify-between rounded-md bg-surface-2 px-2.5 py-1.5 text-sm">
+                        <li key={slotKey} className="flex items-center justify-between bevel-in bg-surface-2 px-2 py-1 text-sm">
                           <span className="truncate">
                             <span className="text-muted">{s.position}</span> · <ProfileLink id={s.userId} name={member?.name ?? `#${s.userId}`} />
                           </span>
                           {s.cpr != null && (
-                            <span className="shrink-0 text-xs" style={{ color: s.cpr >= 70 ? "#3fb950" : s.cpr >= 40 ? "#d29922" : "#f85149" }}>
+                            <span className="shrink-0 text-xs" style={{ color: s.cpr >= 70 ? "#1d7d2e" : s.cpr >= 40 ? "#b8860b" : "#cc0000" }}>
                               {Math.round(s.cpr)}% CPR
                             </span>
                           )}
@@ -135,8 +134,8 @@ export function OcBoard({
                           onClick={() => setOpenSlot(openSlot === slotKey ? null : slotKey)}
                           className="flex w-full items-center justify-between text-left"
                         >
-                          <span className="text-muted">{s.position} · <span className="text-[#d29922]">empty</span></span>
-                          <span className="text-xs text-[#58a6ff]">{openSlot === slotKey ? "hide" : "suggest ▾"}</span>
+                          <span className="text-muted">{s.position} · <span className="text-[#b8860b]">empty</span></span>
+                          <span className="text-xs text-[#0000cc]">{openSlot === slotKey ? "hide" : "suggest ▾"}</span>
                         </button>
                         {openSlot === slotKey && (
                           <div className="mt-2 space-y-1 border-t border-border pt-2">

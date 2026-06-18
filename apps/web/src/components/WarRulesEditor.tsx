@@ -49,14 +49,14 @@ export function WarRulesEditor({ factionId, rules }: { factionId: number; rules:
           onClick={save}
           disabled={pending}
           aria-busy={pending}
-          className="rounded-md bg-[#22c48a] px-4 py-1.5 text-sm font-semibold text-[#0f0f0f] disabled:opacity-60"
+          className="xp-btn disabled:opacity-60"
         >
           {pending ? "Saving…" : "Save rules"}
         </button>
         {msg && (
           <span
             role={msg.ok ? "status" : "alert"}
-            className={`text-xs ${msg.ok ? "text-[#22c48a]" : "text-[#f85149]"}`}
+            className={`text-xs ${msg.ok ? "text-[#1d7d2e]" : "text-[#cc0000]"}`}
           >
             {msg.text}
           </span>

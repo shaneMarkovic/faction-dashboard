@@ -49,7 +49,7 @@ export default async function WarPage() {
             <ProgressBar
               value={active.score}
               max={Math.max(active.target, active.score + active.opponentScore)}
-              color={active.score >= active.opponentScore ? "#3fb950" : "#f85149"}
+              color={active.score >= active.opponentScore ? "#1d7d2e" : "#cc0000"}
             />
             <div className="text-center text-xs text-muted">
               {active.score >= active.opponentScore ? "Leading" : "Behind"} by{" "}
@@ -85,9 +85,9 @@ export default async function WarPage() {
                 <li key={p.memberId} className="flex items-center justify-between gap-2">
                   <ProfileLink id={p.memberId} name={p.name} className="truncate" />
                   <span className="flex gap-1">
-                    {p.reasons.includes("faction_target") && <Badge color="#f85149">faction cap</Badge>}
-                    {p.reasons.includes("member_score") && <Badge color="#d29922">score</Badge>}
-                    {p.reasons.includes("attack_limit") && <Badge color="#a371f7">hits</Badge>}
+                    {p.reasons.includes("faction_target") && <Badge color="#cc0000">faction cap</Badge>}
+                    {p.reasons.includes("member_score") && <Badge color="#b8860b">score</Badge>}
+                    {p.reasons.includes("attack_limit") && <Badge color="#6f42c1">hits</Badge>}
                   </span>
                 </li>
               ))}
@@ -119,7 +119,7 @@ export default async function WarPage() {
                         {w.score}–{w.opponentScore}
                       </td>
                       <td className="px-3 py-2 text-right">
-                        <Badge color={win ? "#3fb950" : "#f85149"}>{win ? "WIN" : "LOSS"}</Badge>
+                        <Badge color={win ? "#1d7d2e" : "#cc0000"}>{win ? "WIN" : "LOSS"}</Badge>
                       </td>
                     </tr>
                   );

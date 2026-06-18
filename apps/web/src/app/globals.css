@@ -1,15 +1,39 @@
 @import "tailwindcss";
 
+/* ============================================================================
+   Windows 2000 / XP "Luna" chrome system.
+   The whole app is styled as an OS-era application: silver/beige window faces,
+   3D bevels (outset/inset), gradient title bars, Tahoma 11px, sunken data wells.
+   Most pages adapt automatically because the Tailwind color + radius tokens
+   below are remapped to the chrome palette.
+   ========================================================================== */
+
 :root {
-  color-scheme: dark; /* native controls (select, number inputs, scrollbars) render dark */
-  --background: #0b0e14;
-  --surface: #151a23;
-  --surface-2: #1c232f;
-  --border: #2a3240;
-  --foreground: #e6e9ef;
-  /* Lightened from #8b94a3 (~4.3:1) to clear WCAG AA (4.5:1) for the abundant
-     small/muted labels on the dark surfaces. */
-  --muted: #a4adbb;
+  color-scheme: light; /* native controls (select, inputs, scrollbars) render light */
+
+  /* Remapped semantic tokens — pages using bg-surface / text-muted / border-border
+     inherit the chrome look without edits. */
+  --background: #3a6ea5;       /* the classic teal "desktop" behind the windows */
+  --surface: #ece9d8;          /* XP window/dialog face */
+  --surface-2: #ffffff;        /* sunken data well (tables, inputs) */
+  --border: #808080;           /* mid bevel line */
+  --foreground: #000000;       /* black text on light chrome */
+  --muted: #4a4a4a;            /* dark gray secondary text (AA on the beige face) */
+
+  /* Bevel palette (the four-tone 3D edge: outer-dark, dark, light, outer-light) */
+  --bevel-hi: #ffffff;
+  --bevel-lo: #808080;
+  --bevel-darker: #404040;
+  --bevel-face: #ece9d8;
+
+  /* Luna title bar gradient (active window) */
+  --luna-1: #0058e6;
+  --luna-2: #3f8cff;
+  --luna-3: #2b72fb;
+  --luna-text: #ffffff;
+
+  /* Accent for selection / active menu items (Luna highlight blue) */
+  --select: #316ac5;
 }
 
 @theme inline {
@@ -19,22 +43,228 @@
   --color-border: var(--border);
   --color-foreground: var(--foreground);
   --color-muted: var(--muted);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+
+  /* Kill rounded corners globally: every rounded-sm/md/lg/xl utility resolves to 0.
+     This neutralizes the ~40 rounded-* classes scattered across the pages without
+     editing them — hard edges are the single biggest "not AI slop" change. */
+  --radius-sm: 0px;
+  --radius-md: 0px;
+  --radius-lg: 0px;
+  --radius-xl: 0px;
+  --radius-2xl: 0px;
+  --radius-3xl: 0px;
+
+  --font-sans: Tahoma, "Segoe UI", Verdana, Geneva, sans-serif;
+  --font-mono: "Lucida Console", "Courier New", monospace;
+}
+
+html {
+  /* tiled, slightly noisy teal desktop feel */
+  background:
+    var(--background)
+    repeating-linear-gradient(
+      45deg,
+      rgba(255, 255, 255, 0.02) 0 2px,
+      rgba(0, 0, 0, 0.02) 2px 4px
+    );
 }
 
 body {
-  background: var(--background);
+  background: transparent;
   color: var(--foreground);
-  font-family: var(--font-sans), system-ui, sans-serif;
+  font-family: Tahoma, "Segoe UI", Verdana, Geneva, sans-serif;
+  font-size: 12px;
+  line-height: 1.35;
 }
 
-/* Global keyboard focus ring. Many controls use `outline-none` with only a
-   border-color change, which is invisible to keyboard users on the dark bg.
-   This guarantees a visible focus indicator everywhere without affecting mouse
-   clicks (:focus-visible only triggers for keyboard/AT navigation). */
+/* rounded-full isn't tokenized, so square it off explicitly. */
+.rounded-full {
+  border-radius: 0 !important;
+}
+
+/* ---- Bevels --------------------------------------------------------------- */
+
+/* Raised (button/panel face) — light top-left, dark bottom-right. */
+.bevel-out {
+  border: 1px solid;
+  border-color: var(--bevel-hi) var(--bevel-darker) var(--bevel-darker) var(--bevel-hi);
+  box-shadow:
+    inset 1px 1px 0 0 #dfdccd,
+    inset -1px -1px 0 0 var(--bevel-lo);
+}
+
+/* Sunken (data wells, inputs) — dark top-left, light bottom-right. */
+.bevel-in {
+  border: 1px solid;
+  border-color: var(--bevel-lo) var(--bevel-hi) var(--bevel-hi) var(--bevel-lo);
+  box-shadow:
+    inset 1px 1px 0 0 var(--bevel-darker),
+    inset -1px -1px 0 0 #dfdccd;
+  background: var(--surface-2);
+}
+
+/* ---- Window panel --------------------------------------------------------- */
+
+.xp-window {
+  background: var(--bevel-face);
+  border: 1px solid;
+  border-color: var(--bevel-hi) var(--bevel-darker) var(--bevel-darker) var(--bevel-hi);
+  box-shadow: inset -1px -1px 0 0 var(--bevel-lo), inset 1px 1px 0 0 #fbfaf6;
+  padding: 3px;
+}
+
+.xp-titlebar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 2px 3px 3px 6px;
+  color: var(--luna-text);
+  font-weight: 700;
+  font-size: 12px;
+  letter-spacing: 0.01em;
+  text-shadow: 1px 1px 0 rgba(0, 0, 0, 0.35);
+  background: linear-gradient(180deg, var(--luna-2) 0%, var(--luna-1) 8%, var(--luna-3) 40%, var(--luna-1) 100%);
+}
+
+/* Inactive / secondary window title bar (muted gray-blue). */
+.xp-titlebar--idle {
+  background: linear-gradient(180deg, #9aa6b8 0%, #7f8da3 45%, #6d7c93 100%);
+}
+
+/* ---- Buttons -------------------------------------------------------------- */
+
+.xp-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  padding: 3px 12px;
+  font-size: 12px;
+  font-family: inherit;
+  color: #000;
+  background: linear-gradient(180deg, #fdfdfc 0%, #f0eee0 48%, #e4e0cf 52%, #ece9d8 100%);
+  border: 1px solid;
+  border-color: #fbfaf6 #707070 #707070 #fbfaf6;
+  box-shadow: inset 1px 1px 0 #ffffff, inset -1px -1px 0 #b8b4a2;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.xp-btn:hover {
+  border-color: #fff #5a7edc #5a7edc #fff;
+}
+.xp-btn:active {
+  background: linear-gradient(180deg, #e4e0cf 0%, #ece9d8 100%);
+  box-shadow: inset 1px 1px 0 #b8b4a2, inset -1px -1px 0 #ffffff;
+  padding: 4px 11px 2px 13px;
+}
+.xp-btn:focus-visible {
+  outline: 1px dotted #000;
+  outline-offset: -4px;
+}
+
+/* ---- Inputs / fields ------------------------------------------------------ */
+
+.xp-field {
+  background: #fff;
+  color: #000;
+  border: 1px solid;
+  border-color: #808080 #ffffff #ffffff #808080;
+  box-shadow: inset 1px 1px 0 #404040;
+  padding: 2px 4px;
+  font-size: 12px;
+  font-family: inherit;
+}
+
+/* ---- Tables (the heart of a text-game UI) -------------------------------- */
+
+.xp-table {
+  width: 100%;
+  border-collapse: collapse;
+  background: #fff;
+  font-size: 12px;
+}
+.xp-table th {
+  text-align: left;
+  font-weight: 700;
+  color: #000;
+  padding: 2px 6px;
+  background: linear-gradient(180deg, #fbfaf6 0%, #ece9d8 100%);
+  border: 1px solid;
+  border-color: #fff #b8b4a2 #b8b4a2 #fff;
+  white-space: nowrap;
+}
+.xp-table td {
+  padding: 2px 6px;
+  border-bottom: 1px solid #e6e4da;
+  border-right: 1px solid #f0eee6;
+}
+/* zebra striping — classic alternating data rows */
+.xp-table tbody tr:nth-child(odd) td {
+  background: #ffffff;
+}
+.xp-table tbody tr:nth-child(even) td {
+  background: #f3f1e7;
+}
+/* Light highlight on hover (not full blue+white) so the many color-coded cells
+   — status text, profit greens/reds, badges — stay readable. */
+.xp-table tbody tr:hover td {
+  background: #cdddf0;
+}
+
+/* Small beveled toggle for filter chips / segmented controls. */
+.xp-toggle {
+  padding: 2px 10px;
+  font-size: 11px;
+  font-weight: 700;
+  color: #000;
+  background: var(--surface);
+  border: 1px solid;
+  border-color: #fbfaf6 #707070 #707070 #fbfaf6;
+  box-shadow: inset 1px 1px 0 #fff, inset -1px -1px 0 #b8b4a2;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.xp-toggle:hover {
+  background: #f3f1e7;
+}
+.xp-toggle[aria-pressed="true"],
+.xp-toggle[data-on="true"] {
+  background: #cdddf0;
+  border-color: #707070 #fbfaf6 #fbfaf6 #707070;
+  box-shadow: inset 1px 1px 0 #404040, inset -1px -1px 0 #fff;
+}
+
+/* ---- Scrollbar (classic chunky 3D) --------------------------------------- */
+
+* {
+  scrollbar-width: auto;
+  scrollbar-color: #cdc9b8 #ece9d8;
+}
+::-webkit-scrollbar {
+  width: 16px;
+  height: 16px;
+}
+::-webkit-scrollbar-track {
+  background: #dfdccd;
+  border: 1px solid #b8b4a2;
+}
+::-webkit-scrollbar-thumb {
+  background: linear-gradient(180deg, #f0eee0, #cdc9b8);
+  border: 1px solid;
+  border-color: #fff #808080 #808080 #fff;
+}
+::-webkit-scrollbar-button {
+  background: #ece9d8;
+  border: 1px solid;
+  border-color: #fff #808080 #808080 #fff;
+  display: block;
+  height: 16px;
+  width: 16px;
+}
+
+/* ---- Focus ring (keep accessible, period-style dotted) -------------------- */
 :focus-visible {
-  outline: 2px solid #58a6ff;
-  outline-offset: 2px;
-  border-radius: 4px;
+  outline: 1px dotted #000;
+  outline-offset: 1px;
 }

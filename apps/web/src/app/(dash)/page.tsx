@@ -10,9 +10,9 @@ export const dynamic = "force-dynamic";
 
 function StatTile({ label, value, sub, href }: { label: string; value: React.ReactNode; sub?: React.ReactNode; href?: string }) {
   const inner = (
-    <div className="rounded-xl border border-border bg-surface p-4 transition-colors hover:border-muted">
-      <div className="text-2xl font-bold tabular-nums">{value}</div>
-      <div className="text-xs text-muted">{label}</div>
+    <div className="bevel-out bg-surface p-3 transition-[background] hover:bg-[#f3f1e7]">
+      <div className="bevel-in mb-1 bg-surface-2 px-2 py-1 text-2xl font-bold tabular-nums">{value}</div>
+      <div className="text-[11px] font-bold uppercase tracking-wide text-muted">{label}</div>
       {sub && <div className="mt-0.5 text-xs text-muted">{sub}</div>}
     </div>
   );
@@ -80,27 +80,27 @@ export default async function OverviewPage() {
           {emptySlots > 0 && (
             <li className="flex items-center justify-between">
               <span>
-                <Badge color="#a371f7">OC</Badge> {emptySlots} empty slots across {activeCrimes.length} crimes
+                <Badge color="#6f42c1">OC</Badge> {emptySlots} empty slots across {activeCrimes.length} crimes
               </span>
-              <Link href="/oc" className="text-xs text-[#58a6ff] hover:underline">Assign →</Link>
+              <Link href="/oc" className="text-xs text-[#0000cc] hover:underline">Assign →</Link>
             </li>
           )}
           {readyCrimes > 0 && (
             <li className="flex items-center justify-between">
-              <span><Badge color="#3fb950">Ready</Badge> {readyCrimes} crimes ready to execute</span>
-              <Link href="/oc" className="text-xs text-[#58a6ff] hover:underline">View →</Link>
+              <span><Badge color="#1d7d2e">Ready</Badge> {readyCrimes} crimes ready to execute</span>
+              <Link href="/oc" className="text-xs text-[#0000cc] hover:underline">View →</Link>
             </li>
           )}
           {needsRevive > 0 && (
             <li className="flex items-center justify-between">
-              <span><Badge color="#f85149">Revive</Badge> {needsRevive} {needsRevive === 1 ? "member needs" : "members need"} a revive</span>
-              <Link href="/members?filter=revivable" className="text-xs text-[#58a6ff] hover:underline">Revive board →</Link>
+              <span><Badge color="#cc0000">Revive</Badge> {needsRevive} {needsRevive === 1 ? "member needs" : "members need"} a revive</span>
+              <Link href="/members?filter=revivable" className="text-xs text-[#0000cc] hover:underline">Revive board →</Link>
             </li>
           )}
           {inactive > 0 && (
             <li className="flex items-center justify-between">
-              <span><Badge color="#d29922">Inactive</Badge> {inactive} members idle 3+ days</span>
-              <Link href="/members?filter=inactive" className="text-xs text-[#58a6ff] hover:underline">Review →</Link>
+              <span><Badge color="#b8860b">Inactive</Badge> {inactive} members idle 3+ days</span>
+              <Link href="/members?filter=inactive" className="text-xs text-[#0000cc] hover:underline">Review →</Link>
             </li>
           )}
           {emptySlots === 0 && readyCrimes === 0 && needsRevive === 0 && inactive === 0 && (
@@ -123,7 +123,7 @@ export default async function OverviewPage() {
                   <div className="text-xs text-muted">until drop · x{chain!.modifier}</div>
                 </div>
               </div>
-              <ProgressBar value={chain!.secondsLeft} max={300} color={chain!.secondsLeft < 120 ? "#f85149" : "#f0883e"} />
+              <ProgressBar value={chain!.secondsLeft} max={300} color={chain!.secondsLeft < 120 ? "#cc0000" : "#f0883e"} />
             </div>
           ) : (
             <EmptyState icon="⛓" title="No active chain" hint="The chain timer and warmer alarm light up here when a chain starts." />
@@ -156,7 +156,7 @@ export default async function OverviewPage() {
       </Panel>
 
       {/* Recently active */}
-      <Panel title="Recently active" right={<Link href="/members" className="text-xs text-[#58a6ff] hover:underline">All members →</Link>}>
+      <Panel title="Recently active" right={<Link href="/members" className="text-xs text-[#0000cc] hover:underline">All members →</Link>}>
         <ul className="grid grid-cols-1 gap-1 text-sm sm:grid-cols-2">
           {d.members
             .slice()
@@ -165,7 +165,7 @@ export default async function OverviewPage() {
             .map((m) => (
               <li key={m.tornId} className="flex items-center justify-between gap-2">
                 <span className="flex items-center gap-2 truncate">
-                  <Dot color={STATUS_COLOR[m.statusState] ?? "#8b94a3"} />
+                  <Dot color={STATUS_COLOR[m.statusState] ?? "#606060"} />
                   <ProfileLink id={m.tornId} name={m.name} className="truncate" />
                   <span className="text-xs text-muted">{m.position}</span>
                 </span>

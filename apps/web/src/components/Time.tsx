@@ -34,7 +34,7 @@ export function Countdown({
   const left = Math.max(0, start - elapsed);
   const urgent = urgentUnder != null && left > 0 && left < urgentUnder;
   return (
-    <span suppressHydrationWarning className={className} style={urgent ? { color: "#f85149" } : undefined}>
+    <span suppressHydrationWarning className={className} style={urgent ? { color: "#cc0000" } : undefined}>
       {left <= 0 ? zero : fmtDuration(left)}
     </span>
   );

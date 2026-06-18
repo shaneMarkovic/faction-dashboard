@@ -64,7 +64,7 @@ export function MembersTable({
     <th
       scope="col"
       aria-sort={sort === key ? (asc ? "ascending" : "descending") : "none"}
-      className={`select-none px-3 py-2 font-medium ${extra || "text-left"}`}
+      className={`select-none ${extra || "text-left"}`}
     >
       <button
         type="button"
@@ -84,7 +84,7 @@ export function MembersTable({
           onChange={(e) => setQ(e.target.value)}
           placeholder="Search name…"
           aria-label="Search members by name"
-          className="rounded-md border border-border bg-surface-2 px-3 py-1.5 text-sm outline-none"
+          className="xp-field"
         />
         <div className="flex flex-wrap gap-1">
           {FILTERS.map((f) => (
@@ -92,9 +92,7 @@ export function MembersTable({
               key={f.key}
               onClick={() => setFilter(f.key)}
               aria-pressed={filter === f.key}
-              className={`rounded-full px-3 py-1 text-xs font-medium transition-colors ${
-                filter === f.key ? "bg-surface-2 text-foreground" : "text-muted hover:text-foreground"
-              }`}
+              className="xp-toggle"
             >
               {f.label}
             </button>
@@ -103,9 +101,9 @@ export function MembersTable({
         <span className="ml-auto text-xs text-muted">{rows.length} shown</span>
       </div>
 
-      <div className="overflow-x-auto rounded-xl border border-border">
-        <table className="w-full text-sm">
-          <thead className="bg-surface-2 text-xs uppercase text-muted">
+      <div className="bevel-in overflow-x-auto p-0">
+        <table className="xp-table">
+          <thead>
             <tr>
               {th("name", "Member")}
               {th("status", "Status")}
@@ -119,14 +117,14 @@ export function MembersTable({
             {rows.map((m) => {
               const inactive = now - m.lastActionTs > 3 * 86400;
               return (
-                <tr key={m.tornId} className="border-t border-border hover:bg-surface-2/50">
+                <tr key={m.tornId}>
                   <td className="px-3 py-2">
                     <div className="font-medium"><ProfileLink id={m.tornId} name={m.name} /></div>
                     <div className="text-xs text-muted">{m.position}</div>
                   </td>
                   <td className="px-3 py-2">
                     <span className="flex items-center gap-1.5">
-                      <Dot color={STATUS_COLOR[m.statusState] ?? "#8b94a3"} />
+                      <Dot color={STATUS_COLOR[m.statusState] ?? "#606060"} />
                       {m.statusState}
                       {m.statusUntil && m.statusUntil > now && (
                         <Countdown seconds={m.statusUntil - now} className="text-xs text-muted" />
@@ -134,16 +132,16 @@ export function MembersTable({
                     </span>
                   </td>
                   <td className="px-3 py-2 text-right tabular-nums">{m.level}</td>
-                  <td className={`px-3 py-2 ${inactive ? "text-[#d29922]" : "text-muted"}`}>
+                  <td className={`px-3 py-2 ${inactive ? "text-[#b8860b]" : "text-muted"}`}>
                     <TimeAgo since={now - m.lastActionTs} />
                   </td>
                   <td className="px-3 py-2 text-right tabular-nums text-muted">{m.daysInFaction}</td>
                   <td className="px-3 py-2">
                     <span className="flex flex-wrap gap-1">
-                      {m.isInOc && <Badge color="#a371f7">OC</Badge>}
-                      {m.isRevivable && m.statusState === "Hospital" && <Badge color="#f85149">revive</Badge>}
-                      {m.isOnWall && <Badge color="#58a6ff">wall</Badge>}
-                      {inactive && <Badge color="#d29922">inactive</Badge>}
+                      {m.isInOc && <Badge color="#6f42c1">OC</Badge>}
+                      {m.isRevivable && m.statusState === "Hospital" && <Badge color="#cc0000">revive</Badge>}
+                      {m.isOnWall && <Badge color="#0000cc">wall</Badge>}
+                      {inactive && <Badge color="#b8860b">inactive</Badge>}
                     </span>
                   </td>
                 </tr>

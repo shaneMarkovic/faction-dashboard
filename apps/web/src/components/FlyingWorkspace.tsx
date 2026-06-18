@@ -45,7 +45,7 @@ export function FlyingWorkspace({
         <button
           type="button"
           onClick={() => setCollapsed(false)}
-          className="fixed bottom-4 right-4 z-30 hidden rounded-full bg-[#22c48a] px-4 py-3 text-sm font-semibold text-[#0f0f0f] shadow-lg lg:block"
+          className="fixed bottom-4 right-4 z-30 hidden xp-btn lg:block"
         >
           🤖 Co-pilot
         </button>

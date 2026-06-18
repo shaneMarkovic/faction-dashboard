@@ -67,7 +67,7 @@ export function ConnectFinanceKey({ reconnect = false }: { reconnect?: boolean }
               href={KEY_DEEP_LINK}
               target="_blank"
               rel="noreferrer"
-              className="text-[#58a6ff] hover:underline"
+              className="text-[#0000cc] hover:underline"
             >
               Open Torn’s key creator with these pre-selected →
             </a>{" "}
@@ -77,7 +77,7 @@ export function ConnectFinanceKey({ reconnect = false }: { reconnect?: boolean }
                 href="https://www.torn.com/preferences.php#tab=api"
                 target="_blank"
                 rel="noreferrer"
-                className="text-[#58a6ff] hover:underline"
+                className="text-[#0000cc] hover:underline"
               >
                 Settings → API
               </a>
@@ -103,11 +103,11 @@ export function ConnectFinanceKey({ reconnect = false }: { reconnect?: boolean }
             onClick={submit}
             disabled={pending}
             aria-busy={pending}
-            className="w-full rounded-md bg-[#22c48a] px-4 py-2 text-sm font-semibold text-[#0f0f0f] disabled:opacity-60"
+            className="w-full xp-btn disabled:opacity-60"
           >
             {pending ? "Connecting…" : "Connect finance key"}
           </button>
-          {error && <p role="alert" className="text-sm text-[#f85149]">{error}</p>}
+          {error && <p role="alert" className="text-sm text-[#cc0000]">{error}</p>}
         </div>
 
         <p className="mt-4 border-t border-border pt-3 text-xs text-muted">

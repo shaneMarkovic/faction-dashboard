@@ -60,7 +60,7 @@ export function CoPilotDock({
             <div className="flex items-center gap-2">
               <span className="text-sm font-semibold">🤖 AI co-pilot</span>
               {!configured && (
-                <span className="rounded-full bg-[#d29922]/20 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-[#d29922]">
+                <span className="rounded-full bg-[#b8860b]/20 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-[#b8860b]">
                   setup needed
                 </span>
               )}
@@ -142,7 +142,7 @@ export function CoPilotDock({
         <button
           type="button"
           onClick={() => setOpen(true)}
-          className="fixed bottom-4 right-4 z-30 rounded-full bg-[#22c48a] px-4 py-3 text-sm font-semibold text-[#0f0f0f] shadow-lg lg:hidden"
+          className="fixed bottom-4 right-4 z-30 xp-btn lg:hidden"
         >
           💬 Co-pilot
         </button>

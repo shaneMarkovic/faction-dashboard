@@ -32,7 +32,7 @@ export default function DashError({
       </p>
       <button
         onClick={reset}
-        className="rounded-md bg-[#22c48a] px-4 py-2 text-sm font-semibold text-[#0f0f0f]"
+        className="xp-btn"
       >
         Try again
       </button>

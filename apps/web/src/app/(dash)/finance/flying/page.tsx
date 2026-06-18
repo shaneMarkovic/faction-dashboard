@@ -13,7 +13,7 @@ import { getSession } from "@/lib/session";
 export const dynamic = "force-dynamic";
 
 function RunCard({ row, rank }: { row: FlyingRow; rank: number }) {
-  const oddsColor = row.forecastConfidence < 0.3 ? "#8b94a3" : row.pSuccess >= 0.7 ? "#3fb950" : row.pSuccess >= 0.4 ? "#d29922" : "#f85149";
+  const oddsColor = row.forecastConfidence < 0.3 ? "#606060" : row.pSuccess >= 0.7 ? "#1d7d2e" : row.pSuccess >= 0.4 ? "#b8860b" : "#cc0000";
   const oddsText = row.forecastConfidence < 0.3 ? "warming up" : `${Math.round(row.pSuccess * 100)}% still stocked on arrival`;
   return (
     <div className="rounded-xl border border-border bg-surface-2/40 p-3">
@@ -24,19 +24,19 @@ function RunCard({ row, rank }: { row: FlyingRow; rank: number }) {
       <div className="mt-1 font-semibold">{row.itemName}</div>
       <div className="mt-2 flex items-end justify-between">
         <div>
-          <div className="text-lg font-bold tabular-nums text-[#3fb950]">{fmtMoney(row.profitPerHour)}/hr</div>
+          <div className="text-lg font-bold tabular-nums text-[#1d7d2e]">{fmtMoney(row.profitPerHour)}/hr</div>
           <div className="text-xs text-muted">{fmtMoney(row.tripProfit)} per trip ({row.tripUnits} items)</div>
         </div>
         <div className="flex flex-col items-end gap-1">
-          {row.cashLimited && <Badge color="#d29922" title={`A full trip costs ${fmtMoney(row.costPerTrip)} — you're ${fmtMoney(row.cashShort)} short`}>need {fmtMoney(row.cashShort)}</Badge>}
-          {row.lowStock && <Badge color="#f85149">low stock</Badge>}
-          {row.museumValue && <Badge color="#a371f7" title="Redeemable for Museum points — worth more than the market margin shows">museum</Badge>}
+          {row.cashLimited && <Badge color="#b8860b" title={`A full trip costs ${fmtMoney(row.costPerTrip)} — you're ${fmtMoney(row.cashShort)} short`}>need {fmtMoney(row.cashShort)}</Badge>}
+          {row.lowStock && <Badge color="#cc0000">low stock</Badge>}
+          {row.museumValue && <Badge color="#6f42c1" title="Redeemable for Museum points — worth more than the market margin shows">museum</Badge>}
         </div>
       </div>
       {row.longHaul && (
         <div
           className="mt-2 text-xs"
-          style={{ color: "#d29922" }}
+          style={{ color: "#b8860b" }}
           title="Energy and nerve keep regenerating while you fly — anything over a full bar is wasted. Spend them down before you leave. Best done while stacked for war or working the abroad merit."
         >
           ⏳ over 5h round trip — drain ~{row.energyCost} energy &amp; {row.nerveCost} nerve before flying or you waste the regen
@@ -75,7 +75,7 @@ export default async function FlyingPage() {
       {/* Compact status strip — replaces the old stacked banners. */}
       <div className="flex flex-wrap items-center gap-2">
         {data?.travel?.traveling && (
-          <Badge color="#58a6ff">
+          <Badge color="#0000cc">
             ✈ {data.travel.destination ?? "In transit"}
             {data.travel.timeLeft != null && (
               <>
@@ -95,9 +95,9 @@ export default async function FlyingPage() {
             🧳 capacity <span className="tabular-nums text-foreground">{data.capacity}</span>
           </span>
         )}
-        {data && !data.forecastReady && <Badge color="#d29922">⏳ forecast warming up</Badge>}
+        {data && !data.forecastReady && <Badge color="#b8860b">⏳ forecast warming up</Badge>}
         {event && (
-          <Badge color="#a371f7" title={event.hint}>
+          <Badge color="#6f42c1" title={event.hint}>
             {event.title}
           </Badge>
         )}

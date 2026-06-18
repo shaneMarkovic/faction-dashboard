@@ -57,7 +57,7 @@ export function MemberBalancesTable({ balances }: { balances: MemberBalance[] })
           className="rounded-md border border-border bg-surface-2 px-3 py-1.5 text-sm text-foreground outline-none"
         />
         <span>held in vault: {fmtMoney(totalMoney)}</span>
-        {loans.length > 0 && <span className="text-[#f85149]">{loans.length} negative (loans)</span>}
+        {loans.length > 0 && <span className="text-[#cc0000]">{loans.length} negative (loans)</span>}
         <span className="ml-auto">{rows.length} members</span>
       </div>
 
@@ -76,7 +76,7 @@ export function MemberBalancesTable({ balances }: { balances: MemberBalance[] })
                 <td className="px-3 py-2"><ProfileLink id={b.memberId} name={b.name} /></td>
                 <td
                   className="px-3 py-2 text-right tabular-nums"
-                  style={{ color: b.money < 0 ? "#f85149" : undefined }}
+                  style={{ color: b.money < 0 ? "#cc0000" : undefined }}
                 >
                   {fmtMoney(b.money)}
                 </td>

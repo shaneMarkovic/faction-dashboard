@@ -58,7 +58,7 @@ export function LiveRefresh({ factionId }: { factionId: number }) {
     <span className="flex items-center gap-1.5 text-xs text-muted">
       <span
         className="inline-block h-2 w-2 rounded-full"
-        style={{ background: live ? "#3fb950" : "#8b94a3" }}
+        style={{ background: live ? "#1d7d2e" : "#606060" }}
       />
       {live ? "live" : "offline"}
     </span>

@@ -8,18 +8,18 @@ import { resetTravelCapacityAuto, setTravelCapacity, setTravelTimeReduction } fr
 import { fmtDuration, fmtMoney } from "@/lib/format";
 
 const TREND: Record<string, { sym: string; color: string }> = {
-  falling: { sym: "▼", color: "#f85149" },
-  rising: { sym: "▲", color: "#3fb950" },
-  stable: { sym: "→", color: "#a4adbb" },
-  unknown: { sym: "·", color: "#8b94a3" },
+  falling: { sym: "▼", color: "#cc0000" },
+  rising: { sym: "▲", color: "#1d7d2e" },
+  stable: { sym: "→", color: "#4a4a4a" },
+  unknown: { sym: "·", color: "#808080" },
 };
 
 function Tag({ color, title, children }: { color: string; title: string; children: ReactNode }) {
   return (
     <span
       title={title}
-      className="ml-1.5 rounded px-1 py-0.5 align-middle text-[10px] font-medium uppercase tracking-wide"
-      style={{ color, backgroundColor: `${color}22` }}
+      className="bevel-out ml-1.5 bg-surface px-1 align-middle text-[10px] font-bold uppercase tracking-wide"
+      style={{ color }}
     >
       {children}
     </span>
@@ -27,9 +27,9 @@ function Tag({ color, title, children }: { color: string; title: string; childre
 }
 
 function odds(p: number, confidence: number): { text: string; color: string } {
-  if (confidence < 0.3) return { text: "~", color: "#8b94a3" };
+  if (confidence < 0.3) return { text: "~", color: "#808080" };
   const pct = Math.round(p * 100);
-  const color = p >= 0.7 ? "#3fb950" : p >= 0.4 ? "#d29922" : "#f85149";
+  const color = p >= 0.7 ? "#1d7d2e" : p >= 0.4 ? "#b8860b" : "#cc0000";
   return { text: `${pct}%`, color };
 }
 
@@ -85,7 +85,7 @@ export function FlyingTable({
     <th
       scope="col"
       aria-sort={sort === key ? (asc ? "ascending" : "descending") : "none"}
-      className="select-none px-3 py-2 text-right font-medium"
+      className="select-none text-right"
     >
       <button type="button" onClick={() => toggle(key)} className="inline-flex items-center gap-1 hover:text-foreground">
         {label} {sort === key && <span aria-hidden="true">{asc ? "▲" : "▼"}</span>}
@@ -101,7 +101,7 @@ export function FlyingTable({
           <select
             value={country}
             onChange={(e) => setFlyingView({ country: e.target.value })}
-            className="rounded-md border border-border bg-surface-2 px-2 py-1 text-sm text-foreground outline-none"
+            className="xp-field"
           >
             <option value="all">All</option>
             {countries.map((c) => (
@@ -116,12 +116,12 @@ export function FlyingTable({
             onChange={(e) => setCap(e.target.value)}
             onBlur={saveCap}
             onKeyDown={(e) => e.key === "Enter" && saveCap()}
-            className="w-16 rounded-md border border-border bg-surface-2 px-2 py-1 text-sm text-foreground outline-none"
+            className="xp-field w-16"
           />
           {capacityOverride != null ? (
             <span className="text-muted">
               manual{detectedCapacity != null && ` · auto ${detectedCapacity}`}{" "}
-              <button type="button" onClick={useAuto} className="text-[#58a6ff] hover:underline">use auto</button>
+              <button type="button" onClick={useAuto} className="text-[#0000cc] hover:underline">use auto</button>
             </span>
           ) : (
             <span className="text-muted">{detectedCapacity != null ? "auto-detected" : "default"}</span>
@@ -134,12 +134,12 @@ export function FlyingTable({
             onChange={(e) => setRed(e.target.value)}
             onBlur={saveRed}
             onKeyDown={(e) => e.key === "Enter" && saveRed()}
-            className="w-16 rounded-md border border-border bg-surface-2 px-2 py-1 text-sm text-foreground outline-none"
+            className="xp-field w-16"
           />
           <span className="flex gap-1">
-            <button type="button" onClick={() => presetRed(0)} className="rounded border border-border px-1.5 py-0.5 hover:text-foreground" title="No reduction (standard flights)">std</button>
-            <button type="button" onClick={() => presetRed(30)} className="rounded border border-border px-1.5 py-0.5 hover:text-foreground" title="Private island airstrip ≈ 30%">airstrip</button>
-            <button type="button" onClick={() => presetRed(48)} className="rounded border border-border px-1.5 py-0.5 hover:text-foreground" title="Airstrip + “Mailing Yourself Abroad” book (≈48% combined)">+book</button>
+            <button type="button" onClick={() => presetRed(0)} className="xp-toggle" title="No reduction (standard flights)">std</button>
+            <button type="button" onClick={() => presetRed(30)} className="xp-toggle" title="Private island airstrip ≈ 30%">airstrip</button>
+            <button type="button" onClick={() => presetRed(48)} className="xp-toggle" title="Airstrip + “Mailing Yourself Abroad” book (≈48% combined)">+book</button>
           </span>
         </label>
         <label className="flex items-center gap-2" title="Hide destinations whose round trip is over ~5h — they cost energy/nerve and waste regen unless you're stacked or at war.">
@@ -151,7 +151,7 @@ export function FlyingTable({
           <select
             value={String(minOdds)}
             onChange={(e) => setFlyingView({ minOdds: Number(e.target.value) })}
-            className="rounded-md border border-border bg-surface-2 px-2 py-1 text-sm text-foreground outline-none"
+            className="xp-field"
           >
             <option value="0">Any</option>
             <option value="0.4">40%+</option>
@@ -162,20 +162,20 @@ export function FlyingTable({
         <span className="ml-auto">{list.length} items</span>
       </div>
 
-      <div className="max-h-[60vh] overflow-auto rounded-lg border border-border">
-        <table className="w-full text-sm">
-          <thead className="sticky top-0 z-10 bg-surface-2 text-xs uppercase text-muted">
+      <div className="bevel-in max-h-[60vh] overflow-auto">
+        <table className="xp-table">
+          <thead className="sticky top-0 z-10">
             <tr>
-              <th scope="col" className="px-3 py-2 text-left font-medium">Item</th>
-              <th scope="col" className="px-3 py-2 text-left font-medium">Country</th>
+              <th scope="col" className="text-left">Item</th>
+              <th scope="col" className="text-left">Country</th>
               {th("stock", "Stock")}
-              <th scope="col" className="px-3 py-2 text-right font-medium">Buy</th>
-              <th scope="col" className="px-3 py-2 text-right font-medium">Sell</th>
+              <th scope="col" className="text-right">Buy</th>
+              <th scope="col" className="text-right">Sell</th>
               {th("profitPerItem", "Profit/item")}
               {th("tripProfit", "Trip profit")}
-              <th scope="col" className="px-3 py-2 text-right font-medium">Round trip</th>
+              <th scope="col" className="text-right">Round trip</th>
               {th("predictedOnArrival", "On arrival")}
-              <th scope="col" className="px-3 py-2 text-right font-medium" title="Estimated chance a full run is still in stock when you land">Odds</th>
+              <th scope="col" className="text-right" title="Estimated chance a full run is still in stock when you land">Odds</th>
               {th("profitPerHour", "Profit/hr")}
               {th("roiPct", "ROI")}
             </tr>
@@ -183,20 +183,20 @@ export function FlyingTable({
           <tbody>
             {list.map((r) => {
               const pos = r.profitPerItem >= 0;
-              const color = pos ? "#3fb950" : "#f85149";
+              const color = pos ? "#1d7d2e" : "#cc0000";
               return (
-                <tr key={`${r.countryCode}-${r.itemId}`} className="border-t border-border hover:bg-surface-2/50">
+                <tr key={`${r.countryCode}-${r.itemId}`}>
                   <td className="px-3 py-2">
                     {r.itemName}
-                    {r.museumValue && <Tag color="#a371f7" title="Redeemable for Museum points — worth more than market margin shows">museum</Tag>}
-                    {r.variableQuality && <Tag color="#d29922" title="Random quality on purchase and slow to sell — listed value isn't reliable">var. quality</Tag>}
-                    {r.irregularRestock && <Tag color="#8b94a3" title="Restocks off the 15-min cycle — arrival odds held low">irregular</Tag>}
+                    {r.museumValue && <Tag color="#6f42c1" title="Redeemable for Museum points — worth more than market margin shows">museum</Tag>}
+                    {r.variableQuality && <Tag color="#b8860b" title="Random quality on purchase and slow to sell — listed value isn't reliable">var. quality</Tag>}
+                    {r.irregularRestock && <Tag color="#606060" title="Restocks off the 15-min cycle — arrival odds held low">irregular</Tag>}
                   </td>
                   <td className="px-3 py-2 text-muted">
                     {r.countryName}
-                    {r.longHaul && <span className="ml-1 text-xs" style={{ color: "#d29922" }} title={`Over 5h round trip — drain ~${r.energyCost} energy & ${r.nerveCost} nerve before flying or you waste the regen.`}>5h+</span>}
+                    {r.longHaul && <span className="ml-1 text-xs" style={{ color: "#b8860b" }} title={`Over 5h round trip — drain ~${r.energyCost} energy & ${r.nerveCost} nerve before flying or you waste the regen.`}>5h+</span>}
                   </td>
-                  <td className="px-3 py-2 text-right tabular-nums" style={{ color: r.lowStock ? "#d29922" : "#a4adbb" }}>
+                  <td className="px-3 py-2 text-right tabular-nums" style={{ color: r.lowStock ? "#b8860b" : "#4a4a4a" }}>
                     {r.stock.toLocaleString()}
                   </td>
                   <td className="px-3 py-2 text-right tabular-nums">{fmtMoney(r.buyPrice)}</td>

@@ -84,8 +84,8 @@ export function AreaChart({
             <circle cx={x(hp.t)} cy={y(hp.value)} r="3" fill="#fff" />
           </>
         )}
-        <text x={pad.l} y={H - 4} fontSize="10" fill="#8b94a3">{fmtTime(minT)}</text>
-        <text x={W - pad.r} y={H - 4} fontSize="10" fill="#8b94a3" textAnchor="end">{fmtTime(maxT)}</text>
+        <text x={pad.l} y={H - 4} fontSize="10" fill="#606060">{fmtTime(minT)}</text>
+        <text x={W - pad.r} y={H - 4} fontSize="10" fill="#606060" textAnchor="end">{fmtTime(maxT)}</text>
       </svg>
       <div className="mt-1 flex items-center justify-between text-xs text-muted">
         <span>peak {peak.value}{unit}</span>

@@ -86,7 +86,7 @@ export function AiSettingsForm({
           </span>
           <span className="text-muted">{initial.model}</span>
           <span className="text-xs text-muted">key …{initial.keyHint}</span>
-          {saved && <span className="text-xs text-[#3fb950]">saved ✓</span>}
+          {saved && <span className="text-xs text-[#1d7d2e]">saved ✓</span>}
         </div>
         <div className="flex gap-2">
           <button
@@ -100,7 +100,7 @@ export function AiSettingsForm({
             type="button"
             onClick={remove}
             disabled={pending}
-            className="rounded-md border border-border px-3 py-1.5 text-sm text-[#f85149] hover:bg-surface-2 disabled:opacity-60"
+            className="rounded-md border border-border px-3 py-1.5 text-sm text-[#cc0000] hover:bg-surface-2 disabled:opacity-60"
           >
             Remove
           </button>
@@ -184,7 +184,7 @@ export function AiSettingsForm({
           onClick={submit}
           disabled={pending}
           aria-busy={pending}
-          className="rounded-md bg-[#22c48a] px-4 py-2 text-sm font-semibold text-[#0f0f0f] disabled:opacity-60"
+          className="xp-btn disabled:opacity-60"
         >
           {pending ? (modelOnly ? "Saving…" : "Validating…") : modelOnly ? "Save model" : "Save key"}
         </button>
@@ -197,7 +197,7 @@ export function AiSettingsForm({
             Cancel
           </button>
         )}
-        {error && <p role="alert" className="text-sm text-[#f85149]">{error}</p>}
+        {error && <p role="alert" className="text-sm text-[#cc0000]">{error}</p>}
       </div>
 
       <p className="text-xs text-muted">
