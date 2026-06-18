@@ -6,7 +6,7 @@ import type { FlyingRow } from "@/lib/finance";
 import { resetTravelCapacityAuto, setTravelCapacity, setTravelTimeReduction } from "@/app/(dash)/finance/actions";
 import { fmtDuration, fmtMoney } from "@/lib/format";
 
-type SortKey = "profitPerMin" | "tripProfit" | "profitPerItem" | "roiPct" | "stock" | "predictedOnArrival";
+type SortKey = "profitPerHour" | "tripProfit" | "profitPerItem" | "roiPct" | "stock" | "predictedOnArrival";
 
 const TREND: Record<string, { sym: string; color: string }> = {
   falling: { sym: "▼", color: "#f85149" },
@@ -48,7 +48,7 @@ export function FlyingTable({
   timeReduction: number;
 }) {
   const [country, setCountry] = useState<string>("all");
-  const [sort, setSort] = useState<SortKey>("profitPerMin");
+  const [sort, setSort] = useState<SortKey>("profitPerHour");
   const [asc, setAsc] = useState(false);
   const [cap, setCap] = useState(String(capacity));
   const [red, setRed] = useState(String(timeReduction));
@@ -162,7 +162,7 @@ export function FlyingTable({
               <th scope="col" className="px-3 py-2 text-right font-medium">Round trip</th>
               {th("predictedOnArrival", "On arrival")}
               <th scope="col" className="px-3 py-2 text-right font-medium" title="Estimated chance a full run is still in stock when you land">Odds</th>
-              {th("profitPerMin", "Profit/min")}
+              {th("profitPerHour", "Profit/hr")}
               {th("roiPct", "ROI")}
             </tr>
           </thead>
@@ -180,8 +180,7 @@ export function FlyingTable({
                   </td>
                   <td className="px-3 py-2 text-muted">
                     {r.countryName}
-                    {r.energyCost > 0 && <span className="ml-1 text-xs" style={{ color: "#d29922" }} title={`Costs ${r.energyCost} energy on landing`}>−{r.energyCost}⚡</span>}
-                    {r.longHaul && <span className="ml-1 text-xs" style={{ color: "#d29922" }} title="Round trip over ~5h">5h+</span>}
+                    {r.longHaul && <span className="ml-1 text-xs" style={{ color: "#d29922" }} title={`Over 5h round trip — drain ~${r.energyCost} energy & ${r.nerveCost} nerve before flying or you waste the regen.`}>5h+</span>}
                   </td>
                   <td className="px-3 py-2 text-right tabular-nums" style={{ color: r.lowStock ? "#d29922" : "#a4adbb" }}>
                     {r.stock.toLocaleString()}
@@ -201,7 +200,7 @@ export function FlyingTable({
                   <td className="px-3 py-2 text-right tabular-nums" style={{ color: odds(r.pSuccess, r.forecastConfidence).color }}>
                     {odds(r.pSuccess, r.forecastConfidence).text}
                   </td>
-                  <td className="px-3 py-2 text-right tabular-nums" style={{ color }}>{fmtMoney(r.profitPerMin)}</td>
+                  <td className="px-3 py-2 text-right tabular-nums" style={{ color }}>{fmtMoney(r.profitPerHour)}</td>
                   <td className="px-3 py-2 text-right tabular-nums" style={{ color }}>{r.roiPct.toFixed(0)}%</td>
                 </tr>
               );

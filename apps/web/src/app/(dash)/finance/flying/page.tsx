@@ -20,20 +20,22 @@ function RunCard({ row, rank }: { row: FlyingRow; rank: number }) {
       <div className="mt-1 font-semibold">{row.itemName}</div>
       <div className="mt-2 flex items-end justify-between">
         <div>
-          <div className="text-lg font-bold tabular-nums text-[#3fb950]">{fmtMoney(row.profitPerMin)}/min</div>
+          <div className="text-lg font-bold tabular-nums text-[#3fb950]">{fmtMoney(row.profitPerHour)}/hr</div>
           <div className="text-xs text-muted">{fmtMoney(row.tripProfit)} per trip ({row.tripUnits} items)</div>
         </div>
         <div className="flex flex-col items-end gap-1">
-          {row.cashLimited && <Badge color="#d29922" title={`A full trip costs ${fmtMoney(row.costPerTrip)}`}>need cash</Badge>}
+          {row.cashLimited && <Badge color="#d29922" title={`A full trip costs ${fmtMoney(row.costPerTrip)} — you're ${fmtMoney(row.cashShort)} short`}>need {fmtMoney(row.cashShort)}</Badge>}
           {row.lowStock && <Badge color="#f85149">low stock</Badge>}
           {row.museumValue && <Badge color="#a371f7" title="Redeemable for Museum points — worth more than the market margin shows">museum</Badge>}
         </div>
       </div>
-      {(row.energyCost > 0 || row.longHaul || row.nerveCost > 0) && (
-        <div className="mt-2 flex flex-wrap gap-x-3 gap-y-1 text-xs text-muted">
-          {row.energyCost > 0 && <span title="Energy deducted on landing">⚡ −{row.energyCost} energy</span>}
-          {row.nerveCost > 0 && <span title="Nerve the round trip consumes">🔥 {row.nerveCost} nerve</span>}
-          {row.longHaul && <span style={{ color: "#d29922" }} title="Round trip is over ~5h, so you waste energy regen unless you're stacked/at war">over 5h</span>}
+      {row.longHaul && (
+        <div
+          className="mt-2 text-xs"
+          style={{ color: "#d29922" }}
+          title="Energy and nerve keep regenerating while you fly — anything over a full bar is wasted. Spend them down before you leave. Best done while stacked for war or working the abroad merit."
+        >
+          ⏳ over 5h round trip — drain ~{row.energyCost} energy &amp; {row.nerveCost} nerve before flying or you waste the regen
         </div>
       )}
       <div className="mt-2 border-t border-border pt-2 text-xs" style={{ color: oddsColor }}>
@@ -105,7 +107,7 @@ export default async function FlyingPage() {
         title="Recommended runs right now"
         right={
           <span className="text-xs text-muted">
-            risk-adjusted profit/min · wallet {fmtMoney(data.wallet)}
+            risk-adjusted profit/hr · wallet {fmtMoney(data.wallet)}
             {!data.forecastReady && " · forecast warming up"}
           </span>
         }
@@ -147,7 +149,7 @@ export default async function FlyingPage() {
       </Panel>
 
       <p className="text-xs text-muted">
-        Profit/min uses standard flight times minus your reduction (private
+        Profit/hr uses standard flight times minus your reduction (private
         island airstrip ≈ 30%; “Mailing Yourself Abroad” book another 25%).
         “On arrival” &amp; odds forecast stock when you land, from observed
         depletion/restock history — confidence grows as we collect data, so

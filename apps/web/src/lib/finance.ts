@@ -450,12 +450,14 @@ export interface FlyingRow {
   tripProfit: number;
   /** Cash needed to buy a full trip. */
   costPerTrip: number;
-  /** profit per real-world minute (round trip). The optimizer's ranking key. */
-  profitPerMin: number;
+  /** profit per real-world HOUR (round trip). The optimizer's ranking key. */
+  profitPerHour: number;
   /** Foreign stock can't fill your capacity. */
   lowStock: boolean;
   /** A full trip costs more than your wallet cash. */
   cashLimited: boolean;
+  /** Extra cash needed to afford a full trip (0 if affordable). */
+  cashShort: number;
   /** Predicted stock when YOU land (one-way flight away). */
   predictedOnArrival: number;
   /** P(at least a full capacity of units still in stock on arrival), 0..1. */
@@ -471,9 +473,10 @@ export interface FlyingRow {
   variableQuality: boolean;
   /** Restocks off the 15-min cycle — arrival forecast is less trustworthy. */
   irregularRestock: boolean;
-  /** Energy deducted on landing at this destination. */
+  /** Energy regen wasted because the round trip outlasts the ~5h bar refill. */
   energyCost: number;
-  /** Total nerve the round trip consumes. */
+  /** Nerve that regenerates over the round trip — drain your bar first or it
+   *  overflows (flying itself costs no nerve). */
   nerveCost: number;
   /** Round trip exceeds the ~5h energy-regen window (wastes regen). */
   longHaul: boolean;
@@ -481,7 +484,7 @@ export interface FlyingRow {
 
 export interface FlyingData {
   rows: FlyingRow[];
-  /** Top opportunities right now, ranked by risk-adjusted profit/min. */
+  /** Top opportunities right now, ranked by risk-adjusted profit/hr. */
   recommendations: FlyingRow[];
   /** Effective capacity used in the math (override ?? detected ?? default). */
   capacity: number;
@@ -578,9 +581,10 @@ const loadFlyingOpportunitiesCached = unstable_cache(
           tripUnits,
           tripProfit,
           costPerTrip,
-          profitPerMin: roundTripMin > 0 ? Math.round(tripProfit / roundTripMin) : 0,
+          profitPerHour: roundTripMin > 0 ? Math.round((tripProfit / roundTripMin) * 60) : 0,
           lowStock: item.quantity < capacity,
           cashLimited: costPerTrip > wallet,
+          cashShort: Math.max(0, costPerTrip - wallet),
           predictedOnArrival: pred.predictedQty,
           pSuccess: pred.pSuccess,
           forecastConfidence,
@@ -604,7 +608,7 @@ const loadFlyingOpportunitiesCached = unstable_cache(
     // they'd top the list on paper while being a poor real-world pick.
     const recommendations = rows
       .filter((r) => r.profitPerItem > 0 && r.roundTripMin > 0 && !r.lowStock && !r.variableQuality)
-      .sort((a, b) => b.profitPerMin * b.pSuccess - a.profitPerMin * a.pSuccess)
+      .sort((a, b) => b.profitPerHour * b.pSuccess - a.profitPerHour * a.pSuccess)
       .slice(0, 6);
 
     return {
