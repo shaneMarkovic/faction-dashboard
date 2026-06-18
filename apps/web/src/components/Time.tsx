@@ -40,17 +40,27 @@ export function Countdown({
   );
 }
 
-/** Live "Xs ago". `since` is seconds-elapsed at server render; ticks up locally. */
-export function TimeAgo({ since, className }: { since: number; className?: string }) {
-  const [extra, setExtra] = useState(0);
+/**
+ * Live "Xs ago", recomputed on the client every second. Provide one of:
+ *  - `at`: absolute unix seconds (preferred — keeps the server render pure).
+ *  - `since`: seconds-elapsed already computed by the server, then ticks up.
+ */
+export function TimeAgo({ since, at, className }: { since?: number; at?: number; className?: string }) {
+  const [d, setD] = useState(() => Math.max(0, Math.round(since ?? 0)));
   useEffect(() => {
-    setExtra(0);
+    const base = Math.max(0, Math.round(since ?? 0));
     const t0 = Date.now();
-    const id = setInterval(() => setExtra(Math.floor((Date.now() - t0) / 1000)), 1000);
+    const tick = () =>
+      setD(
+        at != null
+          ? Math.max(0, Math.floor(Date.now() / 1000) - at)
+          : base + Math.floor((Date.now() - t0) / 1000),
+      );
+    tick();
+    const id = setInterval(tick, 1000);
     return () => clearInterval(id);
-  }, [since]);
+  }, [since, at]);
 
-  const d = Math.max(0, Math.round(since) + extra);
   let text: string;
   if (d < 60) text = `${d}s ago`;
   else if (d < 3600) text = `${Math.floor(d / 60)}m ago`;

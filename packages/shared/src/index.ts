@@ -1,4 +1,5 @@
 export * from "./types";
+export * from "./ai-registry";
 export * from "./crypto";
 export * from "./forecast";
 export * from "./realtime";

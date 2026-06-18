@@ -1,4 +1,7 @@
 import { redirect } from "next/navigation";
+import { getAiConfig } from "@/app/(dash)/finance/ai-actions";
+import { AiSettings } from "@/components/AiSettings";
+import { FlyingChat } from "@/components/FlyingChat";
 import { FlyingTable } from "@/components/FlyingTable";
 import { TimeAgo } from "@/components/Time";
 import { Badge, EmptyState, Panel } from "@/components/ui";
@@ -60,21 +63,9 @@ export default async function FlyingPage() {
 
   const prefs = await getFinancePrefs(session.tornId);
   const data = await loadFlyingOpportunities(session.tornId, prefs.capacityOverride, prefs.timeReduction);
+  const ai = await getAiConfig();
 
-  const stockSince = data?.stockUpdatedAt ? Math.max(0, Math.floor(Date.now() / 1000) - data.stockUpdatedAt) : null;
   const stockAbsolute = data?.stockUpdatedAt ? new Date(data.stockUpdatedAt * 1000).toLocaleString() : null;
-
-  if (!data) {
-    return (
-      <Panel>
-        <EmptyState
-          icon="🔌"
-          title="Couldn’t reach your finance data"
-          hint="Temporary connection hiccup, or your key needs the travel/money permission. Refresh in a moment; if it persists, reconnect your key from above."
-        />
-      </Panel>
-    );
-  }
 
   const event = seasonalEvent();
 
@@ -89,6 +80,8 @@ export default async function FlyingPage() {
         </Panel>
       )}
 
+      {data ? (
+        <>
       {data.travel?.traveling && (
         <Panel>
           <div className="flex items-center gap-3">
@@ -128,9 +121,9 @@ export default async function FlyingPage() {
       <Panel
         title="All buying opportunities"
         right={
-          stockSince != null ? (
+          data.stockUpdatedAt != null ? (
             <span className="text-xs text-muted" title={stockAbsolute ?? undefined}>
-              stock updated <TimeAgo since={stockSince} />
+              stock updated <TimeAgo at={data.stockUpdatedAt} />
             </span>
           ) : undefined
         }
@@ -147,8 +140,30 @@ export default async function FlyingPage() {
           />
         )}
       </Panel>
+        </>
+      ) : (
+        <Panel>
+          <EmptyState
+            icon="🔌"
+            title="Couldn’t reach your live flying data"
+            hint="Temporary connection hiccup, or your key needs the travel/money permission. The co-pilot below still works for your finances — refresh in a moment, or reconnect your key."
+          />
+        </Panel>
+      )}
 
-      <p className="text-xs text-muted">
+      <Panel
+        title="AI co-pilot"
+        right={<span className="text-xs text-muted">bring your own key</span>}
+      >
+        <FlyingChat configured={ai.configured} />
+      </Panel>
+
+      <Panel title="AI co-pilot settings">
+        <AiSettings />
+      </Panel>
+
+      {data && (
+        <p className="text-xs text-muted">
         Profit/hr uses standard flight times minus your reduction (private
         island airstrip ≈ 30%; “Mailing Yourself Abroad” book another 25%).
         “On arrival” &amp; odds forecast stock when you land, from observed
@@ -160,7 +175,8 @@ export default async function FlyingPage() {
         costs and event dates are from the community travel guide — verify
         against the Torn wiki. Stock &amp; foreign prices via YATA; sell prices
         are Torn item market values — actual fills vary.
-      </p>
+        </p>
+      )}
     </div>
   );
 }

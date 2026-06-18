@@ -3,10 +3,9 @@
 import { type ReactNode, useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import type { FlyingRow } from "@/lib/finance";
+import { type FlyingSortKey, setFlyingView, useFlyingView } from "@/lib/flying-view";
 import { resetTravelCapacityAuto, setTravelCapacity, setTravelTimeReduction } from "@/app/(dash)/finance/actions";
 import { fmtDuration, fmtMoney } from "@/lib/format";
-
-type SortKey = "profitPerHour" | "tripProfit" | "profitPerItem" | "roiPct" | "stock" | "predictedOnArrival";
 
 const TREND: Record<string, { sym: string; color: string }> = {
   falling: { sym: "▼", color: "#f85149" },
@@ -47,12 +46,13 @@ export function FlyingTable({
   detectedCapacity: number | null;
   timeReduction: number;
 }) {
-  const [country, setCountry] = useState<string>("all");
-  const [sort, setSort] = useState<SortKey>("profitPerHour");
-  const [asc, setAsc] = useState(false);
+  // View state (country/sort/asc/under5h/minOdds) is shared so the AI co-pilot
+  // can drive it too — see lib/flying-view.ts.
+  const view = useFlyingView();
+  const { country, sort, asc, under5h, minOdds } = view;
+
   const [cap, setCap] = useState(String(capacity));
   const [red, setRed] = useState(String(timeReduction));
-  const [under5h, setUnder5h] = useState(false);
   const [pending, start] = useTransition();
   const router = useRouter();
 
@@ -61,14 +61,16 @@ export function FlyingTable({
     [rows],
   );
 
-  const view = useMemo(() => {
+  const list = useMemo(() => {
     let out = rows.slice();
     if (country !== "all") out = out.filter((r) => r.countryName === country);
     if (under5h) out = out.filter((r) => !r.longHaul);
+    // Odds filter only applies once a forecast is confident enough to trust.
+    if (minOdds > 0) out = out.filter((r) => r.forecastConfidence >= 0.3 && r.pSuccess >= minOdds);
     const dir = asc ? 1 : -1;
     out.sort((a, b) => dir * (a[sort] - b[sort]));
     return out;
-  }, [rows, country, sort, asc, under5h]);
+  }, [rows, country, sort, asc, under5h, minOdds]);
 
   const save = (fn: () => Promise<void>) => start(async () => { await fn(); router.refresh(); });
   const saveCap = () => { const n = Number(cap); if (Number.isFinite(n)) save(() => setTravelCapacity(n)); };
@@ -76,10 +78,10 @@ export function FlyingTable({
   const saveRed = () => { const n = Number(red); if (Number.isFinite(n)) save(() => setTravelTimeReduction(n)); };
   const presetRed = (n: number) => { setRed(String(n)); save(() => setTravelTimeReduction(n)); };
 
-  const toggle = (key: SortKey) =>
-    sort === key ? setAsc(!asc) : (setSort(key), setAsc(false));
+  const toggle = (key: FlyingSortKey) =>
+    sort === key ? setFlyingView({ asc: !asc }) : setFlyingView({ sort: key, asc: false });
 
-  const th = (key: SortKey, label: string) => (
+  const th = (key: FlyingSortKey, label: string) => (
     <th
       scope="col"
       aria-sort={sort === key ? (asc ? "ascending" : "descending") : "none"}
@@ -98,7 +100,7 @@ export function FlyingTable({
           Country
           <select
             value={country}
-            onChange={(e) => setCountry(e.target.value)}
+            onChange={(e) => setFlyingView({ country: e.target.value })}
             className="rounded-md border border-border bg-surface-2 px-2 py-1 text-sm text-foreground outline-none"
           >
             <option value="all">All</option>
@@ -141,11 +143,23 @@ export function FlyingTable({
           </span>
         </label>
         <label className="flex items-center gap-2" title="Hide destinations whose round trip is over ~5h — they cost energy/nerve and waste regen unless you're stacked or at war.">
-          <input type="checkbox" checked={under5h} onChange={(e) => setUnder5h(e.target.checked)} />
+          <input type="checkbox" checked={under5h} onChange={(e) => setFlyingView({ under5h: e.target.checked })} />
           Under 5h
         </label>
+        <label className="flex items-center gap-2" title="Only show runs whose arrival odds clear this bar (confident forecasts only).">
+          Min odds
+          <select
+            value={String(minOdds)}
+            onChange={(e) => setFlyingView({ minOdds: Number(e.target.value) })}
+            className="rounded-md border border-border bg-surface-2 px-2 py-1 text-sm text-foreground outline-none"
+          >
+            <option value="0">Any</option>
+            <option value="0.4">40%+</option>
+            <option value="0.7">70%+</option>
+          </select>
+        </label>
         {pending && <span>saving…</span>}
-        <span className="ml-auto">{view.length} items</span>
+        <span className="ml-auto">{list.length} items</span>
       </div>
 
       <div className="overflow-x-auto rounded-lg border border-border">
@@ -167,7 +181,7 @@ export function FlyingTable({
             </tr>
           </thead>
           <tbody>
-            {view.map((r) => {
+            {list.map((r) => {
               const pos = r.profitPerItem >= 0;
               const color = pos ? "#3fb950" : "#f85149";
               return (
