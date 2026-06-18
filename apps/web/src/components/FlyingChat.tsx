@@ -145,8 +145,8 @@ export function FlyingChat({
   };
 
   return (
-    <div className="flex h-full min-h-0 flex-col gap-3">
-      <div className="min-h-0 flex-1 space-y-3 overflow-y-auto">
+    <div className="flex flex-col gap-3">
+      <div className="max-h-[50vh] space-y-3 overflow-y-auto">
         {messages.length === 0 && (
           <div className="flex flex-wrap gap-2">
             {SUGGESTIONS.map((s) => (
