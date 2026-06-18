@@ -35,9 +35,8 @@ export function FinanceTabs() {
               key={t.href}
               href={t.href}
               aria-current={active ? "page" : undefined}
-              className={`rounded-lg px-3 py-1.5 text-sm font-medium transition-colors ${
-                active ? "bg-surface-2 text-foreground" : "text-muted hover:text-foreground"
-              }`}
+              data-on={active ? "true" : undefined}
+              className="xp-toggle"
             >
               {t.label}
             </Link>
@@ -47,7 +46,7 @@ export function FinanceTabs() {
       <button
         onClick={disconnect}
         disabled={pending}
-        className="ml-auto text-xs text-muted hover:text-[#cc0000] disabled:opacity-60"
+        className="ml-auto text-xs text-muted underline hover:text-[#cc0000] disabled:opacity-60"
       >
         {pending ? "Disconnecting…" : "Disconnect key"}
       </button>

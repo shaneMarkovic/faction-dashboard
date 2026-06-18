@@ -30,7 +30,12 @@ export default async function DashLayout({
             {session && <LogoutButton name={session.name} />}
           </div>
         </header>
-        <main className="flex-1">{children}</main>
+        {/* Recessed light "client workspace" so page headings, tab strips and
+            plain text don't sit on the saturated teal desktop (unreadable).
+            Panels/windows float on top of this gray, classic MDI-app style. */}
+        <main className="flex-1 bg-[#d6d3c6] p-3 [box-shadow:inset_1px_1px_0_#b8b4a2,inset_-1px_-1px_0_#fbfaf6]">
+          {children}
+        </main>
       </div>
     </div>
   );
