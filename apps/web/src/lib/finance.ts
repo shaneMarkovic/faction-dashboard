@@ -183,6 +183,8 @@ export const loadForecastParams = unstable_cache(
         rateVar: Number(r.rate_var),
         restockIntervalMin: r.restock_interval_min == null ? null : Number(r.restock_interval_min),
         restockAmount: r.restock_amount == null ? null : Number(r.restock_amount),
+        restockIntervalVar: r.restock_interval_var == null ? 0 : Number(r.restock_interval_var),
+        restockCycles: r.restock_cycles == null ? 0 : Number(r.restock_cycles),
         lastRestockTs: r.last_restock_ts == null ? null : Number(r.last_restock_ts),
         sampleCount: Number(r.sample_count),
         spanMinutes: Number(r.span_minutes),

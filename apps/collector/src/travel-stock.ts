@@ -121,13 +121,16 @@ export class TravelStockRecorder {
       await this.pool.query(
         `insert into forecast_params
            (country_code, item_id, depletion_rate_per_min, rate_var, restock_interval_min,
-            restock_amount, last_restock_ts, sample_count, span_minutes, max_observed_qty, confidence, updated_at)
-         values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11, now())
+            restock_amount, restock_interval_var, restock_cycles, last_restock_ts, sample_count,
+            span_minutes, max_observed_qty, confidence, updated_at)
+         values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13, now())
          on conflict (country_code, item_id) do update set
            depletion_rate_per_min = excluded.depletion_rate_per_min,
            rate_var = excluded.rate_var,
            restock_interval_min = excluded.restock_interval_min,
            restock_amount = excluded.restock_amount,
+           restock_interval_var = excluded.restock_interval_var,
+           restock_cycles = excluded.restock_cycles,
            last_restock_ts = excluded.last_restock_ts,
            sample_count = excluded.sample_count,
            span_minutes = excluded.span_minutes,
@@ -136,7 +139,8 @@ export class TravelStockRecorder {
            updated_at = now()`,
         [
           g.country, g.item, m.depletionRatePerMin, m.rateVar, m.restockIntervalMin,
-          m.restockAmount, m.lastRestockTs, m.sampleCount, m.spanMinutes, m.maxObservedQty, m.confidence,
+          m.restockAmount, m.restockIntervalVar, m.restockCycles, m.lastRestockTs, m.sampleCount,
+          m.spanMinutes, m.maxObservedQty, m.confidence,
         ],
       );
     }

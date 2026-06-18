@@ -26,6 +26,10 @@ export interface ForecastModel {
   rateVar: number;
   restockIntervalMin: number | null;
   restockAmount: number | null;
+  /** Variance of the observed restock intervals (min²) — measured timing jitter. */
+  restockIntervalVar: number;
+  /** Number of restock intervals observed (restock events − 1). */
+  restockCycles: number;
   lastRestockTs: number | null;
   sampleCount: number;
   spanMinutes: number;
@@ -112,12 +116,33 @@ export function computeForecastParams(obs: ObsPoint[]): ForecastModel {
     rateVar: variance(rateSamples),
     restockIntervalMin: intervals.length >= 1 ? median(intervals) : null,
     restockAmount: restockAmts.length >= 1 ? median(restockAmts) : null,
+    // variance() needs ≥2 samples; returns 0 otherwise (also 0 for perfectly
+    // regular restocks — restockCycles disambiguates the two at predict time).
+    restockIntervalVar: variance(intervals),
+    restockCycles: intervals.length,
     lastRestockTs,
     sampleCount: pts.length,
     spanMinutes,
     maxObservedQty: pts.length ? Math.max(...pts.map((p) => p.quantity)) : 0,
     confidence,
   };
+}
+
+/**
+ * Restock-timing jitter (std, minutes): how much a restock's arrival drifts off
+ * its median schedule. Uses the MEASURED variance of observed restock intervals,
+ * shrunk toward a heuristic prior (20% of the interval) by a pseudo-count so a
+ * couple of noisy cycles can't dominate. Falls back to the pure heuristic until
+ * at least two intervals (≥3 restocks) have been seen.
+ */
+function restockJitterMin(m: ForecastModel, interval: number): number {
+  const heurStd = Math.max(2, 0.2 * interval);
+  if (m.restockCycles < 2) return heurStd;
+  // Blend variances with a pseudo-count of K0 heuristic "cycles"; measured wins
+  // as real cycles accrue. A genuinely regular item (var≈0) shrinks toward 0.
+  const K0 = 4;
+  const blendedVar = (m.restockCycles * m.restockIntervalVar + K0 * heurStd * heurStd) / (m.restockCycles + K0);
+  return Math.max(1, Math.sqrt(blendedVar));
 }
 
 /**
@@ -144,8 +169,7 @@ function restockStats(
     return { units: Math.floor(horizonMin / interval) * amount, variance: 0 };
   }
 
-  // Heuristic restock-timing jitter (std), until we measure interval variance.
-  const jitterMin = Math.max(2, 0.2 * interval);
+  const jitterMin = restockJitterMin(m, interval);
   const intervalSec = interval * 60;
   const arrivalSec = nowSec + horizonMin * 60;
   let units = 0;
