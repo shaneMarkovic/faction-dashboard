@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import type { UIMessage } from "ai";
 import {
   AI_PROVIDERS,
   aiKeyAad,
@@ -11,6 +12,7 @@ import {
   isKnownModel,
   type AiProvider,
 } from "@torn/shared";
+import { type AiChatSummary, deleteAiChatFor, listAiChatsFor, loadAiChat } from "@/lib/ai/chat-store";
 import { tryQuery } from "@/lib/db";
 import { getSession } from "@/lib/session";
 
@@ -120,6 +122,28 @@ export async function removeAiConfig(): Promise<void> {
   if (!session) return;
   await tryQuery("delete from user_ai_config where member_id = $1", [session.tornId]);
   revalidatePath("/finance/flying");
+}
+
+// --- Chat sessions --------------------------------------------------------
+
+/** Past co-pilot conversations for the logged-in member (most recent first). */
+export async function listAiChats(): Promise<AiChatSummary[]> {
+  const session = await getSession();
+  if (!session) return [];
+  return listAiChatsFor(session.tornId);
+}
+
+/** Messages for one conversation owned by the member (empty if not found). */
+export async function getAiChat(chatId: string): Promise<UIMessage[]> {
+  const session = await getSession();
+  if (!session) return [];
+  return loadAiChat(session.tornId, chatId);
+}
+
+export async function deleteAiChat(chatId: string): Promise<void> {
+  const session = await getSession();
+  if (!session) return;
+  await deleteAiChatFor(session.tornId, chatId);
 }
 
 /**

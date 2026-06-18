@@ -1,32 +1,43 @@
 "use client";
 
 import { type ReactNode, useState } from "react";
+import type { UIMessage } from "ai";
+import { FlyingChat } from "./FlyingChat";
+import { getAiChat, listAiChats } from "@/app/(dash)/finance/ai-actions";
+import type { AiChatSummary } from "@/lib/ai/chat-store";
 
 /**
- * Houses the AI co-pilot. On desktop it's a sticky right-hand sidebar that stays
- * in view while you scroll the opportunities; on mobile it collapses to a
- * floating button that opens a bottom drawer. A gear swaps the chat for the
- * provider/key settings. The chat is rendered exactly once (single useChat).
+ * Houses the AI co-pilot. Desktop: sticky right sidebar. Mobile: floating button
+ * → bottom drawer. A gear swaps the chat for provider/key settings. Owns chat
+ * session state — "New" starts a fresh conversation, the dropdown resumes a past
+ * one — and remounts FlyingChat (via key) so each session is a clean useChat.
  */
 export function CoPilotDock({
-  chat,
   settings,
   configured,
+  initialChats,
 }: {
-  chat: ReactNode;
   settings: ReactNode;
   configured: boolean;
+  initialChats: AiChatSummary[];
 }) {
   const [open, setOpen] = useState(false); // mobile drawer
   const [showSettings, setShowSettings] = useState(!configured);
+  const [chats, setChats] = useState<AiChatSummary[]>(initialChats);
+
+  // `key` forces a fresh useChat on session switch; `id`/`initial` seed it.
+  const [view, setView] = useState<{ key: number; id?: string; initial?: UIMessage[] }>({ key: 0 });
+
+  const refreshChats = () => void listAiChats().then(setChats);
+  const newChat = () => setView((v) => ({ key: v.key + 1, id: undefined, initial: undefined }));
+  const openChat = (id: string) =>
+    void getAiChat(id).then((messages) => setView((v) => ({ key: v.key + 1, id, initial: messages })));
 
   return (
     <>
       <aside
         className={[
-          // Mobile: hidden until opened, then a bottom drawer.
           open ? "fixed inset-x-2 bottom-2 top-16 z-40 flex flex-col" : "hidden",
-          // Desktop: sticky sidebar that fills the viewport height.
           "lg:sticky lg:top-4 lg:flex lg:max-h-[calc(100vh-2rem)] lg:flex-col lg:self-start",
         ].join(" ")}
       >
@@ -62,8 +73,43 @@ export function CoPilotDock({
             </div>
           </header>
 
+          {!showSettings && configured && (
+            <div className="flex items-center gap-2 border-b border-border px-3 py-2 text-xs">
+              <button
+                type="button"
+                onClick={newChat}
+                className="shrink-0 rounded-md border border-border px-2 py-1 text-muted hover:text-foreground"
+              >
+                ＋ New
+              </button>
+              <select
+                value=""
+                onChange={(e) => {
+                  if (e.target.value) openChat(e.target.value);
+                }}
+                className="min-w-0 flex-1 rounded-md border border-border bg-surface-2 px-2 py-1 text-foreground outline-none"
+                aria-label="Resume a past chat"
+              >
+                <option value="">Resume a chat… ({chats.length})</option>
+                {chats.map((c) => (
+                  <option key={c.id} value={c.id}>{c.title}</option>
+                ))}
+              </select>
+            </div>
+          )}
+
           <div className="flex min-h-0 flex-1 flex-col p-4">
-            {showSettings ? <div className="overflow-y-auto">{settings}</div> : chat}
+            {showSettings ? (
+              <div className="overflow-y-auto">{settings}</div>
+            ) : (
+              <FlyingChat
+                key={view.key}
+                configured={configured}
+                chatId={view.id}
+                initialMessages={view.initial}
+                onTurnFinish={refreshChats}
+              />
+            )}
           </div>
         </div>
       </aside>

@@ -2,10 +2,10 @@ import { redirect } from "next/navigation";
 import { getAiConfig } from "@/app/(dash)/finance/ai-actions";
 import { AiSettings } from "@/components/AiSettings";
 import { CoPilotDock } from "@/components/CoPilotDock";
-import { FlyingChat } from "@/components/FlyingChat";
 import { FlyingTable } from "@/components/FlyingTable";
 import { Countdown, TimeAgo } from "@/components/Time";
 import { Badge, EmptyState, Panel } from "@/components/ui";
+import { listAiChatsFor } from "@/lib/ai/chat-store";
 import { fmtDuration, fmtMoney } from "@/lib/format";
 import { getFinancePrefs, loadFlyingOpportunities, type FlyingRow } from "@/lib/finance";
 import { getSession } from "@/lib/session";
@@ -65,6 +65,7 @@ export default async function FlyingPage() {
   const prefs = await getFinancePrefs(session.tornId);
   const data = await loadFlyingOpportunities(session.tornId, prefs.capacityOverride, prefs.timeReduction);
   const ai = await getAiConfig();
+  const chats = await listAiChatsFor(session.tornId);
 
   const stockAbsolute = data?.stockUpdatedAt ? new Date(data.stockUpdatedAt * 1000).toLocaleString() : null;
   const event = seasonalEvent();
@@ -168,7 +169,7 @@ export default async function FlyingPage() {
         {/* Co-pilot: sticky sidebar on desktop, drawer on mobile */}
         <CoPilotDock
           configured={ai.configured}
-          chat={<FlyingChat configured={ai.configured} />}
+          initialChats={chats}
           settings={<AiSettings />}
         />
       </div>

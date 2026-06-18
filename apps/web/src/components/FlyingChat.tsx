@@ -1,9 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { type ReactNode, useState } from "react";
 import { useRouter } from "next/navigation";
-import { useChat } from "@ai-sdk/react";
+import { type UIMessage, useChat } from "@ai-sdk/react";
 import { DefaultChatTransport, lastAssistantMessageIsCompleteWithToolCalls } from "ai";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 import { resetTravelCapacityAuto, setTravelCapacity, setTravelTimeReduction } from "@/app/(dash)/finance/actions";
 import { type FlyingSortKey, type FlyingView, setFlyingView } from "@/lib/flying-view";
 
@@ -19,16 +21,70 @@ function toolLabel(type: string): string {
   return type.replace(/^tool-/, "").replace(/_/g, " ");
 }
 
-export function FlyingChat({ configured }: { configured: boolean }) {
+/** Render assistant markdown (bold, lists, code, links) with our styling. */
+function Markdown({ children }: { children: string }) {
+  return (
+    <div className="space-y-2 leading-relaxed [&_a]:text-[#58a6ff] [&_a]:underline [&_code]:rounded [&_code]:bg-surface-2 [&_code]:px-1 [&_code]:py-0.5 [&_code]:text-xs [&_h1]:font-semibold [&_h2]:font-semibold [&_h3]:font-semibold [&_li]:my-0.5 [&_ol]:list-decimal [&_ol]:pl-5 [&_strong]:font-semibold [&_strong]:text-foreground [&_ul]:list-disc [&_ul]:pl-5">
+      <ReactMarkdown remarkPlugins={[remarkGfm]}>{children}</ReactMarkdown>
+    </div>
+  );
+}
+
+/** Render an assistant turn: markdown text blocks, with consecutive tool calls
+ *  collapsed into a single spaced chip row instead of jamming inline. */
+function AssistantParts({ parts }: { parts: UIMessage["parts"] }) {
+  const out: ReactNode[] = [];
+  let chips: { id: string; label: string }[] = [];
+  const flush = (key: string) => {
+    if (chips.length === 0) return;
+    out.push(
+      <div key={`chips-${key}`} className="flex flex-wrap gap-1">
+        {chips.map((c) => (
+          <span
+            key={c.id}
+            className="inline-flex items-center gap-1 rounded-full bg-surface-2 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-muted"
+          >
+            🔧 {c.label}
+          </span>
+        ))}
+      </div>,
+    );
+    chips = [];
+  };
+  parts.forEach((p, i) => {
+    if (p.type === "text") {
+      flush(String(i));
+      if (p.text.trim()) out.push(<Markdown key={i}>{p.text}</Markdown>);
+    } else if (p.type.startsWith("tool-")) {
+      chips.push({ id: String(i), label: toolLabel(p.type) });
+    }
+  });
+  flush("end");
+  return <div className="space-y-2">{out}</div>;
+}
+
+export function FlyingChat({
+  configured,
+  chatId,
+  initialMessages,
+  onTurnFinish,
+}: {
+  configured: boolean;
+  chatId?: string;
+  initialMessages?: UIMessage[];
+  onTurnFinish?: () => void;
+}) {
   const [input, setInput] = useState("");
   const router = useRouter();
 
   const { messages, sendMessage, addToolOutput, status, error } = useChat({
+    id: chatId,
+    messages: initialMessages,
     transport: new DefaultChatTransport({ api: "/api/finance-chat" }),
     sendAutomaticallyWhen: lastAssistantMessageIsCompleteWithToolCalls,
-    // Client-side tools: apply view changes to the shared store, and route
-    // persisted prefs through the existing server actions. Don't await
-    // addToolOutput (avoids the documented deadlock).
+    onFinish: () => onTurnFinish?.(),
+    // Client-side tools: apply view changes to the shared store, route persisted
+    // prefs through the existing server actions. Don't await addToolOutput.
     async onToolCall({ toolCall }) {
       if (toolCall.dynamic) return;
 
@@ -106,37 +162,19 @@ export function FlyingChat({ configured }: { configured: boolean }) {
           </div>
         )}
 
-        {messages.map((m) => (
-          <div key={m.id} className={m.role === "user" ? "text-right" : ""}>
-            <div
-              className={
-                m.role === "user"
-                  ? "inline-block rounded-2xl bg-surface-2 px-3 py-2 text-sm"
-                  : "inline-block max-w-full rounded-2xl bg-surface px-3 py-2 text-sm"
-              }
-            >
-              {m.parts.map((part, i) => {
-                if (part.type === "text") {
-                  return (
-                    <span key={i} className="whitespace-pre-wrap">{part.text}</span>
-                  );
-                }
-                if (part.type.startsWith("tool-")) {
-                  return (
-                    <span
-                      key={i}
-                      className="mr-1 inline-block rounded bg-surface-2 px-1.5 py-0.5 text-[10px] uppercase tracking-wide text-muted"
-                      title="Read your data / adjusted the table"
-                    >
-                      🔧 {toolLabel(part.type)}
-                    </span>
-                  );
-                }
-                return null;
-              })}
+        {messages.map((m) =>
+          m.role === "user" ? (
+            <div key={m.id} className="flex justify-end">
+              <div className="max-w-[85%] rounded-2xl bg-[#22c48a]/15 px-3 py-2 text-sm">
+                {m.parts.map((p, i) => (p.type === "text" ? <span key={i} className="whitespace-pre-wrap">{p.text}</span> : null))}
+              </div>
             </div>
-          </div>
-        ))}
+          ) : (
+            <div key={m.id} className="rounded-2xl bg-surface-2/40 px-3 py-2 text-sm">
+              <AssistantParts parts={m.parts} />
+            </div>
+          ),
+        )}
 
         {status === "submitted" && <div className="text-xs text-muted">thinking…</div>}
       </div>

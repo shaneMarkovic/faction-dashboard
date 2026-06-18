@@ -8,6 +8,7 @@
 
 import { type UIMessage, convertToModelMessages, stepCountIs, streamText } from "ai";
 import { UI_TOOLS, buildFinanceTools } from "@/lib/ai/tools";
+import { saveAiChat } from "@/lib/ai/chat-store";
 import { COPILOT_SYSTEM } from "@/lib/ai/prompt";
 import { resolveMemberModel } from "@/lib/ai/provider";
 import { getSession } from "@/lib/session";
@@ -26,9 +27,10 @@ export async function POST(req: Request) {
     );
   }
 
+  let id: string | undefined;
   let messages: UIMessage[];
   try {
-    ({ messages } = (await req.json()) as { messages: UIMessage[] });
+    ({ id, messages } = (await req.json()) as { id?: string; messages: UIMessage[] });
   } catch {
     return new Response("Bad request", { status: 400 });
   }
@@ -44,6 +46,12 @@ export async function POST(req: Request) {
   // Map provider/runtime errors to a safe message — never echo the error (it
   // can contain the Authorization header / key).
   return result.toUIMessageStreamResponse({
+    originalMessages: messages,
+    onFinish: ({ messages: finalMessages }) => {
+      // Persist the full conversation for resume. Fire-and-forget; a failed
+      // save must not break the stream.
+      if (id) void saveAiChat(session.tornId, id, finalMessages);
+    },
     onError: () =>
       `The AI request failed via ${resolved.providerLabel}. Check your key, model, and quota in AI co-pilot settings.`,
   });
