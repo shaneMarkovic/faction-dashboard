@@ -162,9 +162,9 @@ export function FlyingTable({
         <span className="ml-auto">{list.length} items</span>
       </div>
 
-      <div className="overflow-x-auto rounded-lg border border-border">
+      <div className="max-h-[60vh] overflow-auto rounded-lg border border-border">
         <table className="w-full text-sm">
-          <thead className="bg-surface-2 text-xs uppercase text-muted">
+          <thead className="sticky top-0 z-10 bg-surface-2 text-xs uppercase text-muted">
             <tr>
               <th scope="col" className="px-3 py-2 text-left font-medium">Item</th>
               <th scope="col" className="px-3 py-2 text-left font-medium">Country</th>

@@ -72,9 +72,9 @@ export function FlyingChat({ configured }: { configured: boolean }) {
   if (!configured) {
     return (
       <p className="text-sm text-muted">
-        Set up your AI provider and key in the panel below to chat with the
-        co-pilot. It reads your flying opportunities and your own Torn finance
-        data, and can filter/sort this table for you.
+        Tap the ⚙ above to add your AI provider and key. The co-pilot reads your
+        flying opportunities and your own Torn finance data, and can filter or
+        sort the table for you.
       </p>
     );
   }
@@ -89,8 +89,8 @@ export function FlyingChat({ configured }: { configured: boolean }) {
   };
 
   return (
-    <div className="space-y-3">
-      <div className="max-h-96 space-y-3 overflow-y-auto">
+    <div className="flex h-full min-h-0 flex-col gap-3">
+      <div className="min-h-0 flex-1 space-y-3 overflow-y-auto">
         {messages.length === 0 && (
           <div className="flex flex-wrap gap-2">
             {SUGGESTIONS.map((s) => (
