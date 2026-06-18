@@ -55,45 +55,45 @@ export function CoPilotDock({
             : "lg:sticky lg:top-4 lg:flex lg:max-h-[calc(100vh-2rem)] lg:flex-col lg:self-start",
         ].join(" ")}
       >
-        <div className="flex min-h-0 flex-1 flex-col rounded-2xl border border-border bg-surface shadow-lg lg:shadow-none">
-          <header className="flex items-center justify-between border-b border-border px-4 py-3">
-            <div className="flex items-center gap-2">
-              <span className="text-sm font-semibold">🤖 AI co-pilot</span>
+        <div className="xp-window flex min-h-0 flex-1 flex-col shadow-lg lg:shadow-none">
+          <header className="xp-titlebar mb-px">
+            <span className="flex min-w-0 items-center gap-2">
+              <span className="truncate">🤖 AI co-pilot</span>
               {!configured && (
-                <span className="rounded-full bg-[#b8860b]/20 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-[#b8860b]">
+                <span className="bevel-in bg-surface px-1 text-[10px] font-bold uppercase tracking-wide text-[#b8860b] [text-shadow:none]">
                   setup needed
                 </span>
               )}
-            </div>
-            <div className="flex items-center gap-1 text-muted">
+            </span>
+            <span className="flex shrink-0 items-center gap-1">
               <button
                 type="button"
                 onClick={() => setShowSettings((v) => !v)}
                 title={showSettings ? "Back to chat" : "Provider & key settings"}
                 aria-label={showSettings ? "Back to chat" : "Provider & key settings"}
-                className="rounded-md px-2 py-1 text-sm hover:text-foreground"
+                className="xp-caption-btn"
               >
-                {showSettings ? "💬" : "⚙"}
+                {showSettings ? "💬 Chat" : "⚙ Settings"}
               </button>
               <button
                 type="button"
                 onClick={() => setOpen(false)}
-                title="Close"
+                title="Close co-pilot"
                 aria-label="Close co-pilot"
-                className="rounded-md px-2 py-1 text-sm hover:text-foreground lg:hidden"
+                className="xp-caption-btn xp-caption-btn--close lg:hidden"
               >
                 ✕
               </button>
               <button
                 type="button"
                 onClick={onCollapse}
-                title="Hide co-pilot"
+                title="Hide the co-pilot panel"
                 aria-label="Hide co-pilot"
-                className="hidden rounded-md px-2 py-1 text-sm hover:text-foreground lg:inline"
+                className="hidden xp-caption-btn lg:inline-flex"
               >
-                ⟩
+                Hide ▶
               </button>
-            </div>
+            </span>
           </header>
 
           {!showSettings && configured && (
@@ -101,7 +101,7 @@ export function CoPilotDock({
               <button
                 type="button"
                 onClick={newChat}
-                className="shrink-0 rounded-md border border-border px-2 py-1 text-muted hover:text-foreground"
+                className="xp-toggle shrink-0"
               >
                 ＋ New
               </button>
@@ -110,7 +110,7 @@ export function CoPilotDock({
                 onChange={(e) => {
                   if (e.target.value) openChat(e.target.value);
                 }}
-                className="min-w-0 flex-1 rounded-md border border-border bg-surface-2 px-2 py-1 text-foreground outline-none"
+                className="xp-field min-w-0 flex-1"
                 aria-label="Resume a past chat"
               >
                 <option value="">Resume a chat… ({chats.length})</option>
@@ -144,7 +144,7 @@ export function CoPilotDock({
           onClick={() => setOpen(true)}
           className="fixed bottom-4 right-4 z-30 xp-btn lg:hidden"
         >
-          💬 Co-pilot
+          💬 Open co-pilot
         </button>
       )}
     </>

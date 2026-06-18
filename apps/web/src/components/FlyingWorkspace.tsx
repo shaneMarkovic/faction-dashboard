@@ -40,14 +40,17 @@ export function FlyingWorkspace({
         />
       </div>
 
-      {/* Desktop launcher to bring the co-pilot back. */}
+      {/* Desktop launcher to bring the co-pilot back — a tab pinned to the right
+          edge (where the panel re-appears), so "hidden, click to restore" reads
+          clearly. The arrow points toward where it slides in from. */}
       {collapsed && (
         <button
           type="button"
           onClick={() => setCollapsed(false)}
-          className="fixed bottom-4 right-4 z-30 hidden xp-btn lg:block"
+          title="Show the co-pilot panel"
+          className="fixed right-0 top-1/2 z-30 hidden -translate-y-1/2 xp-btn font-bold lg:block"
         >
-          🤖 Co-pilot
+          ◀ 🤖 Co-pilot
         </button>
       )}
     </>

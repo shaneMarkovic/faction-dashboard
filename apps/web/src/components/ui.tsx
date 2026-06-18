@@ -139,7 +139,15 @@ export function Panel({
       {(title || right) && (
         <header className={`xp-titlebar ${idle ? "xp-titlebar--idle" : ""} mb-[3px]`}>
           {title && <h2 className="truncate">{title}</h2>}
-          {right && <div className="flex shrink-0 items-center gap-2">{right}</div>}
+          {right && (
+            // Inset light chip: the title bar is saturated blue, so any links /
+            // muted / colored values passed in would be unreadable on it. Sitting
+            // them in a white well keeps every color legible (and looks like a
+            // classic toolbar readout).
+            <div className="bevel-in flex shrink-0 items-center gap-2 bg-surface px-2 py-px text-foreground [text-shadow:none]">
+              {right}
+            </div>
+          )}
         </header>
       )}
       <div className="px-2 py-1.5">{children}</div>

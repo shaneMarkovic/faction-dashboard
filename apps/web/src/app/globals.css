@@ -124,7 +124,37 @@ body {
   font-size: 12px;
   letter-spacing: 0.01em;
   text-shadow: 1px 1px 0 rgba(0, 0, 0, 0.35);
-  background: linear-gradient(180deg, var(--luna-2) 0%, var(--luna-1) 8%, var(--luna-3) 40%, var(--luna-1) 100%);
+  background: linear-gradient(180deg, var(--luna-2) 0%, var(--luna-1) 9%, var(--luna-3) 45%, var(--luna-1) 100%);
+}
+
+/* Title-bar caption buttons (settings / hide / close) — classic gray 3D buttons
+   that sit on the blue bar. White glyphs would vanish; these stay legible. */
+.xp-caption-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  min-width: 19px;
+  height: 18px;
+  padding: 0 6px;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1;
+  color: #000;
+  text-shadow: none;
+  background: linear-gradient(180deg, #fdfdfc 0%, #f0eee0 50%, #e4e0cf 100%);
+  border: 1px solid;
+  border-color: #fff #707070 #707070 #fff;
+  box-shadow: inset 1px 1px 0 #fff, inset -1px -1px 0 #b8b4a2;
+  cursor: pointer;
+}
+.xp-caption-btn:active {
+  box-shadow: inset 1px 1px 0 #b8b4a2, inset -1px -1px 0 #fff;
+}
+.xp-caption-btn--close:hover {
+  background: linear-gradient(180deg, #f2a08f 0%, #cc0000 100%);
+  color: #fff;
+  border-color: #fff #7a0000 #7a0000 #fff;
 }
 
 /* Inactive / secondary window title bar (muted gray-blue). */
