@@ -12,6 +12,7 @@ const FINANCE_SELECTIONS = [
   "travel",
   "stocks",
   "perks",
+  "bars",
 ];
 
 // VERIFY: confirm Torn's key-creation deep-link format (param names + fragment

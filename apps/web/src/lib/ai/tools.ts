@@ -14,6 +14,7 @@ import "server-only";
 import { type ToolSet, tool } from "ai";
 import { z } from "zod";
 import {
+  TornApiError,
   fetchNetworthBreakdown,
   fetchStocksRef,
   fetchUserBars,
@@ -34,6 +35,12 @@ import { type PersonalClient, personalTornClient } from "@/lib/torn";
 const NO_KEY =
   "The user hasn't connected a Torn finance key (or it can't be read), so this data isn't available. Tell them to connect one on the Finance page.";
 const API_FAIL = "The Torn API request failed — suggest trying again in a moment.";
+const NO_PERMISSION =
+  "The user's finance key is a custom key that doesn't include this particular data selection — this is NOT a Torn outage, and retrying won't help. Tell them to reconnect their finance key on the Finance page with the missing permission enabled. Carry on with whatever else you can answer.";
+
+// Torn app-level error codes that mean a key/permission problem (not an outage).
+// 2 = incorrect key, 16 = access level too low / selection not granted.
+const KEY_PERMISSION_CODES = new Set([2, 16]);
 
 const SORT_KEYS = ["profitPerHour", "tripProfit", "roiPct", "predictedOnArrival", "pSuccess"] as const;
 type SortKey = (typeof SORT_KEYS)[number];
@@ -128,7 +135,12 @@ export function buildFinanceTools(memberId: number): ToolSet {
     if (!pc) return { error: NO_KEY };
     try {
       return await fn(pc);
-    } catch {
+    } catch (err) {
+      // A custom key missing this selection is a permission gap, not an outage —
+      // say so plainly so the model doesn't claim "Torn is down / try again".
+      if (err instanceof TornApiError && KEY_PERMISSION_CODES.has(err.code)) {
+        return { error: NO_PERMISSION };
+      }
       return { error: API_FAIL };
     }
   }

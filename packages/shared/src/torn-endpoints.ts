@@ -423,8 +423,8 @@ export async function fetchUserBars(client: TornClient): Promise<UserBars> {
     const b = (raw ?? {}) as Record<string, unknown>;
     const current = num(b.current);
     const maximum = num(b.maximum);
-    // `fulltime` is seconds until full; 0 (or already full) → null.
-    const full = b.fulltime != null ? num(b.fulltime) : null;
+    // `full_time` is seconds until full; 0 (or already full) → null.
+    const full = b.full_time != null ? num(b.full_time) : null;
     return { current, maximum, fullInSec: full && full > 0 && current < maximum ? full : null };
   };
   return {
