@@ -92,13 +92,15 @@ export function ConnectFinanceKey({ reconnect = false }: { reconnect?: boolean }
 
         <div className="mt-3 space-y-2">
           <input
-            type="password"
+            type="text"
             value={key}
             onChange={(e) => setKey(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && submit()}
             placeholder="Paste your finance key…"
             aria-label="Finance API key"
-            className="w-full rounded-md border border-border bg-surface-2 px-3 py-2 text-sm outline-none focus:border-muted"
+            autoComplete="off"
+            spellCheck={false}
+            className="w-full rounded-md border border-border bg-surface-2 px-3 py-2 text-sm font-mono outline-none focus:border-muted"
           />
           <button
             onClick={submit}

@@ -206,6 +206,15 @@ body {
 
 /* ---- Inputs / fields ------------------------------------------------------ */
 
+/* Inputs sit on white wells (--surface-2). Pin their text to the foreground so
+   a light text color inherited from the chrome can't render content invisibly
+   (white-on-white) — e.g. a pasted API key you can't see. */
+input,
+textarea,
+select {
+  color: var(--foreground);
+}
+
 .xp-field {
   background: #fff;
   color: #000;
